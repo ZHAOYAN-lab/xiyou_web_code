@@ -1,0 +1,84 @@
+@import '~theme/index.less';
+
+.sl-com-table {
+  position: relative;
+
+  &.no-data {
+    min-height: 300px;
+  }
+  .sl-table-content {
+    height: 100%;
+  }
+  .sl-table {
+    width: 100%;
+    overflow: hidden;
+
+    ::v-deep .ivu-table-body {
+      overflow-x: scroll;
+    }
+  }
+  .sl-table-page {
+    text-align: center;
+    padding-top: 20px;
+    padding-bottom: 0px;
+
+    // ::v-deep .ivu-page-item {
+    //   min-width: 35px;
+    //   height: 35px;
+    //   line-height: 35px;
+    //   border-radius: 50%;
+    //   border: none;
+    //   font-weight: bold;
+
+    //   &:hover {
+    //     background: #f1f7ff;
+    //   }
+
+    //   &.ivu-page-item-active {
+    //     background: @primary-color;
+
+    //     a {
+    //       color: #ffffff !important;
+    //     }
+    //   }
+    // }
+
+    // ::v-deep .ivu-page-prev,
+    // ::v-deep .ivu-page-next {
+    //   width: 70px;
+    //   height: 35px;
+    //   line-height: 35px;
+    //   background: @primary-color;
+    //   border-radius: 8px;
+    //   font-weight: bold;
+
+    //   a {
+    //     // font-size: 20px;
+    //     color: #ffffff;
+    //   }
+
+    //   &:hover {
+    //     a {
+    //       color: #ffffff;
+    //     }
+    //   }
+    // }
+
+    // ::v-deep .ivu-page-prev {
+    //   margin-right: 10px;
+    // }
+
+    // ::v-deep .ivu-page-next {
+    //   margin-left: 10px;
+    // }
+
+    // ::v-deep .ivu-page-options-elevator {
+    //   input {
+    //     height: 30px;
+    //     line-height: 30px;
+    //     padding: 0 10px;
+    //     width: 55px;
+    //   }
+    // }
+  }
+}

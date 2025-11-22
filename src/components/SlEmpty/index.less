@@ -1,0 +1,30 @@
+// 无数据
+.icon-empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -60%);
+  font-size: 12px;
+  width: 160px;
+  height: 200px;
+  text-align: center;
+
+  span {
+    width: 100%;
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #999999;
+    font-size: 16px;
+  }
+  &::after {
+    content: '';
+    display: inline-block;
+    width: 160px;
+    height: 156px;
+    background-size: 100%;
+    background-repeat: no-repeat;
+    background-image: url('@/assets/images/empty.png');
+  }
+}

@@ -1,0 +1,31 @@
+/*
+ * @Author: shenlan
+ * @Description: 自定义 iview 样式覆盖
+ */
+
+//loading----
+.ivu-spin-fix {
+  background: transparent !important;
+}
+
+.demo-spin-icon-load {
+  animation: ani-demo-spin 1s linear infinite;
+}
+
+.ivu-card-head {
+  border-bottom: none !important;
+}
+
+@keyframes ani-demo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  50% {
+    transform: rotate(180deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}

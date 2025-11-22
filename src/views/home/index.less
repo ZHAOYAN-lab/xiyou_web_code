@@ -1,0 +1,385 @@
+@import '@/lib/less/module/sl-l7.less';
+
+.a {
+  height: 100%;
+
+  .b {
+    height: 100%;
+    overflow: auto;
+
+    .c {
+      display: flex;
+      .c-left {
+        flex: 2;
+        margin-right: 14px;
+        position: relative;
+
+        &.margin-none {
+          margin-right: 0px;
+        }
+      }
+      .c-right {
+        flex: 1;
+        &.left-collapsed {
+          display: none;
+        }
+      }
+    }
+  }
+}
+.sl-card {
+  .title {
+    display: flex;
+    align-items: center;
+    font-size: 18px;
+    font-weight: 700;
+
+    .icon {
+      display: inline-block;
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      background-size: 100%;
+      margin-right: 8px;
+      background: #008afb;
+      position: relative;
+
+      &::after {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        content: '';
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        background-size: 100%;
+      }
+
+      &.icon-1 {
+        &::after {
+          background-image: url('@/assets/images/home/icon_1.png');
+        }
+      }
+      &.icon-2 {
+        &::after {
+          background-image: url('@/assets/images/home/icon_2.png');
+        }
+      }
+      &.icon-3 {
+        &::after {
+          background-image: url('@/assets/images/home/icon_3.png');
+        }
+      }
+      &.icon-4 {
+        &::after {
+          background-image: url('@/assets/images/home/icon_4.png');
+        }
+      }
+      &.icon-5 {
+        &::after {
+          background-image: url('@/assets/images/home/icon_5.png');
+        }
+      }
+      &.icon-6 {
+        &::after {
+          background-image: url('@/assets/images/home/icon_6.png');
+        }
+      }
+      &.icon-7 {
+        &::after {
+          background-image: url('@/assets/images/home/icon_7.png');
+        }
+      }
+    }
+
+    span {
+      &:last-child {
+        flex: 1;
+        width: 0;
+
+        display: inline-block;
+        word-wrap: normal;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;
+      }
+    }
+  }
+
+  .extra {
+    display: flex;
+    align-items: center;
+    position: relative;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    top: -4px;
+
+    .switch {
+      margin-right: 16px;
+      label {
+        font-weight: 400;
+        color: #333;
+        font-size: 14px;
+        margin-right: 5px;
+      }
+    }
+  }
+
+  .list-detail {
+    display: flex;
+    > div {
+      flex: 1;
+      height: 102px;
+      border-radius: 8px;
+      background: #f5f7fb;
+      margin-right: 16px;
+      padding: 10px 10px;
+      padding-left: 18px;
+
+      &:last-child {
+        margin-right: 0;
+      }
+      p {
+        &:first-child {
+          height: 48px;
+          font-size: 16px;
+          color: #999999;
+        }
+        &:last-child {
+          font-size: 28px;
+          font-weight: 700;
+          color: #333333;
+        }
+      }
+    }
+
+    &-no-bg {
+      > div {
+        background: transparent;
+      }
+    }
+  }
+}
+// l7 地图
+.l7-map {
+  height: @l7-map-height;
+  position: relative;
+
+  border: 1px solid #f0f0f0;
+  border-radius: 3px;
+}
+
+.sl-card-01 {
+  position: relative;
+
+  .option-sidebar {
+    z-index: 100;
+    position: absolute;
+    top: 68px;
+    right: 0px;
+    width: 12px;
+    height: 32px;
+
+    > div {
+      height: 100%;
+      text-align: center;
+      border-radius: 0px 4px 4px 0px;
+      background: rgba(0, 138, 251, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      cursor: pointer;
+
+      &.hide {
+        display: none;
+      }
+
+      &::before {
+        content: '';
+        margin-left: 2px;
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border: 1px solid #fff;
+        border-left: none;
+        border-bottom: none;
+        transform: rotate(45deg);
+        margin-left: -3px;
+      }
+
+      &.close {
+        &::before {
+          transform: rotate(225deg);
+          margin-left: 2px;
+        }
+      }
+    }
+  }
+}
+
+// 定位概览
+.sl-card-02 {
+  .carousel-content {
+    position: relative;
+    height: 126px;
+    > div {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+
+      .detail {
+        height: 118px;
+      }
+    }
+
+    ::v-deep .ivu-carousel-dots-inside {
+      bottom: -5px;
+    }
+  }
+}
+
+// 在线对象分布
+.sl-card-03 {
+  .card3Chart {
+    position: relative;
+    top: -10px;
+    height: 253px;
+    overflow: hidden;
+  }
+}
+// 24小时告警变化
+.sl-card-04 {
+  .card4Chart {
+    position: relative;
+    height: 350px;
+
+    .chart-4 {
+      height: 100%;
+
+      visibility: hidden;
+      &.show {
+        visibility: visible;
+      }
+    }
+  }
+}
+
+// 今日警告
+.sl-card-05 {
+  .content {
+    height: 350px;
+  }
+}
+
+// 信标状态
+.sl-card-06 {
+  .content {
+    height: 348px;
+
+    .card6Chart {
+      position: relative;
+      height: 250px;
+    }
+  }
+}
+// 基站状态
+.sl-card-07 {
+  .content {
+    height: 348px;
+    .card7Chart {
+      position: relative;
+      height: 250px;
+    }
+  }
+}
+// 今日警告类别占比
+.sl-card-08 {
+  .content {
+    height: 348px;
+
+    .card8Chart {
+      position: relative;
+      height: 100%;
+      background: #f5f7fb;
+      border-radius: 4px;
+    }
+  }
+}
+
+.card-flex {
+  display: flex;
+
+  > div {
+    flex: 1;
+    &:first-child {
+      margin-right: 20px;
+    }
+  }
+}
+
+.warning-list {
+  padding-top: 20px;
+  ul {
+    display: block !important;
+  }
+  li {
+    list-style: none;
+    border: none !important;
+    display: flex;
+    color: #333333;
+    height: 37px;
+    align-items: center;
+
+    border-bottom: 1px solid #eff3fd !important;
+    p {
+      flex: 1;
+      text-align: center;
+      font-size: 14px;
+      font-weight: normal;
+    }
+
+    &.title {
+      border-radius: 8px 0px 0px 0px;
+      background: #f5f7fb;
+      color: #999999;
+      border-bottom: none;
+    }
+  }
+}
+
+.minsScreen {
+  .sl-card {
+    .list-detail {
+      > div {
+        flex: 1;
+        height: 82px;
+        margin-right: 10px;
+        padding: 8px 0px;
+        padding-left: 10px;
+        padding-right: 10px;
+
+        &:last-child {
+          margin-right: 0;
+        }
+
+        p {
+          &:first-child {
+            height: 38px;
+            font-size: 14px;
+          }
+          &:last-child {
+            font-size: 22px;
+          }
+        }
+      }
+    }
+  }
+
+  ::v-deep .ivu-carousel-dots-inside {
+    bottom: 0 !important;
+  }
+}

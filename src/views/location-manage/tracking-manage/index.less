@@ -1,0 +1,41 @@
+@import '@/lib/less/module/sl-l7.less';
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  .switch {
+    margin-left: 20px;
+  }
+}
+
+.map-card {
+  .map {
+    position: relative;
+    border-radius: 4px;
+    min-height: @l7-map-height;
+    border: 1px solid #f0f0f0;
+  }
+}
+
+.sl-main-content {
+  height: 100%;
+  overflow: hidden;
+  .map-card {
+    height: 100%;
+
+    ::v-deep .ivu-card-body {
+      position: absolute;
+      top: 50px;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      overflow: hidden;
+      .for-map {
+        height: 100%;
+        border: 1px solid #f0f0f0;
+        border-radius: 3px;
+      }
+    }
+  }
+}

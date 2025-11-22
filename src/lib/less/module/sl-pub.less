@@ -1,0 +1,194 @@
+/*
+ * @Author: shenlan
+ * @Description: 统一默认样式
+ */
+*,
+*:before,
+*:after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-size: 16px !important;
+  position: relative;
+  background: #f5f7fb !important;
+  // background: gray;
+  color: #333 !important;
+
+  &::before {
+    background-image: url('../../../assets/images/bg.png');
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-size: 100%;
+    content: '';
+    display: inline-block;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: -1;
+  }
+
+  &.body-ja-jp {
+    font-family: 'YJTop Ellipsis', 'ヒラギノ角ゴ ProN', 'Hiragino Kaku Gothic ProN', 'メイリオ',
+      Meiryo, Osaka, 'ＭＳ Ｐゴシック', 'MS PGothic', sans-serif !important;
+  }
+}
+
+ul {
+  li {
+    list-style: none;
+  }
+}
+
+.flex {
+  display: flex;
+  align-items: center;
+}
+
+.flex-start {
+  display: flex;
+  align-items: flex-start;
+}
+
+.sl-justify-content {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.sl-inline-block {
+  display: inline-block;
+}
+
+.sl-text-align-left {
+  text-align: left !important;
+}
+
+// 清浮动
+.sl-clean {
+  zoom: 1;
+}
+
+.sl-clean:after {
+  clear: both;
+  content: '.';
+  display: block;
+  width: 0;
+  height: 0;
+  visibility: hidden;
+}
+
+// 单行文本溢出显示省略号
+.sl-text-overflow {
+  word-wrap: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+// 多行文本溢出显示省略号
+.sl-line-clamp {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: break-all;
+  text-overflow: ellipsis;
+}
+
+/* 谷歌 */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+
+//表格 dropdown
+.sl-table-dropdown-menu {
+  min-width: 80px !important;
+
+  //基本模块
+  .sl-table-dropdown-menu-base {
+    color: #333333;
+    text-align: center;
+  }
+
+  //删除模块
+  .sl-table-dropdown-menu-delete {
+    color: #ff7979;
+    border-top: 1px solid #dddddd;
+    text-align: center;
+  }
+}
+
+//分页
+.sl-page {
+  text-align: center;
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
+// 语言切换下拉框
+.language-dropdown {
+  max-height: 400px !important;
+
+  .l-detail {
+    color: rgba(0, 0, 0, 0.88);
+    span {
+      &:first-child {
+        margin-right: 8px;
+      }
+    }
+  }
+}
+
+// table 表格内 操作栏
+.table-option {
+  > span {
+    margin-right: 10px;
+    cursor: pointer;
+    &:hover {
+      opacity: 0.8;
+    }
+    &:last-child {
+      margin-right: 0;
+    }
+    color: #2d8cf0;
+
+    &.delete {
+      color: #f5222d;
+    }
+
+    &.disabled {
+      color: #999999;
+      cursor: not-allowed;
+    }
+  }
+}
+
+// 页面 标题搜索栏
+.card-search {
+  .ivu-card-body {
+    padding-bottom: 6px !important;
+  }
+
+  .sl-main-search-header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+
+    > div {
+      margin-bottom: 10px;
+    }
+  }
+}
+
+// 图片预览 -小图片
+.sl-preview-image {
+  max-width: 100%;
+}

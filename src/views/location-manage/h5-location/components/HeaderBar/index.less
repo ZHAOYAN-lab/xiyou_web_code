@@ -1,0 +1,30 @@
+@import '~theme/index.less';
+.header-bar {
+  height: 56px;
+  background: gray;
+
+  padding: 0 16px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+
+  .h-left {
+    display: flex;
+    align-items: center;
+    .logo {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      background-size: 100%;
+      background-image: url('@/assets/images/logo.png');
+    }
+    .name {
+      font-size: 22px;
+      font-weight: 600;
+      margin-left: 6px;
+      color: @primary-color;
+    }
+  }
+}

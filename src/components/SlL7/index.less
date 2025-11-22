@@ -1,0 +1,47 @@
+.sl-com-l7 {
+  height: 100%;
+  .l7-full {
+    height: 100%;
+    background: #ffffff;
+  }
+}
+// l7 地图
+.l7-map {
+  height: 100%;
+  // border: 1px solid #f0f0f0;
+  // border-radius: 4px;
+  position: relative;
+
+  .span-full {
+    position: absolute;
+    z-index: 100;
+    bottom: 12px;
+    right: 12px;
+    display: inline-block;
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.34);
+    cursor: pointer;
+    &::before {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      display: inline-block;
+      content: '';
+      width: 24px;
+      height: 24px;
+      position: inherit;
+      background-size: 100%;
+      background-repeat: no-repeat;
+      background-image: url('./image/icon_full.png');
+    }
+
+    &.selected {
+      &::before {
+        background-image: url('./image/icon_back.png');
+      }
+    }
+  }
+}

@@ -1,0 +1,25 @@
+@import '@/lib/less/module/sl-l7.less';
+
+.modal-content {
+  height: 630px;
+  overflow: auto;
+  width: 100%;
+  ::v-deep .form {
+    width: 500px;
+    margin: auto;
+    .cascader-wrapper {
+      display: inline-block;
+    }
+
+    label {
+      width: 175px !important;
+    }
+  }
+}
+
+.l7-map-1 {
+  position: relative;
+  height: @l7-map-height;
+  border: 1px solid #f0f0f0;
+  border-radius: 3px;
+}

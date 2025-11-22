@@ -1,0 +1,22 @@
+.sl-main {
+  height: 100%;
+  overflow: hidden;
+
+  .for-map {
+    height: calc(100% - 56px);
+    overflow: auto;
+
+    .map-card {
+      height: 100%;
+
+      ::v-deep .ivu-card-body {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        overflow: hidden;
+      }
+    }
+  }
+}

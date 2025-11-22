@@ -1,0 +1,408 @@
+{
+  "base": {
+    "systemName": "室内定位管理系统",
+    "add": "添加",
+    "edit": "编辑",
+    "see": "查看",
+    "delete": "删除",
+    "sureDelete": "确定删除吗?",
+    "deleteSuccess": "删除成功",
+    "option": "操作",
+    "optionSuccess": "操作成功",
+    "optionFail": "操作失败",
+    "set": "配置",
+    "search": "查询",
+    "select": "请选择",
+    "input": "请输入",
+    "sure": "确定",
+    "cancel": "取消",
+    "disabled": "禁用",
+    "undisabled": "启用",
+    "empty": "暂无数据展示",
+    "loading": "加载中",
+    "mailSwitch": "邮件开关",
+    "download": "下载",
+    "online": "在线",
+    "outline": "离线",
+    "yes": "是",
+    "no": "否",
+    "noData": "无",
+    "map": "地图",
+    "noDataText": "暂无数据",
+    "date": "日期时间",
+    "back": "返回",
+    "upload": {
+      "fail": "上传失败",
+      "success": "上传成功",
+      "fileTypeError": "文件格式错误",
+      "emptyError": "空文件不能上传",
+      "progress": "上传文件进度"
+    },
+    "config": {
+      "objectType": {
+        "a": "人员",
+        "b": "物品",
+        "c": "设备",
+        "d": "车辆",
+        "e": "未知"
+      },
+      "warningType": {
+        "a": "围栏进入",
+        "b": "围栏离开",
+        "c": "地图进入"
+      }
+    },
+
+    "httpCode": {
+      "error": "服务器端出错",
+      "error400": "错误的请求",
+      "error401": "未授权，请重新登录",
+      "error403": "拒绝访问",
+      "error404": "请求错误，未找到该资源",
+      "error405": "请求方法未允许",
+      "error408": "请求超时",
+      "error500": "服务器端出错",
+      "error501": "网络未实现",
+      "error502": "网络错误",
+      "error503": "服务不可用",
+      "error504": "网络超时",
+      "error505": "http版本不支持该请求",
+      "errorCodeMsg": {
+        "RL0001": "登录已过期",
+        "RL0002": "登录已过期",
+        "RL0003": "登录已过期",
+        "1000": "建筑名称不能为空",
+        "1001": "建筑名称已存在",
+        "1002": "建筑信息未找到",
+        "1101": "本地服务已离线",
+        "1102": "本地服务未激活",
+        "1200": "地图信息未找到",
+        "1300": "信标MAC不能为空",
+        "1301": "信标类型不能为空",
+        "1302": "信标MAC已存在",
+        "1303": "信标信息未找到",
+        "1304": "信标已绑定对象，不可修改类型",
+        "1305": "不能绑定与信标类型不同的对象",
+        "1306": "信标已绑定对象，不可删除",
+        "1307": "未知类型信标无法绑定对象",
+        "1308": "信标MAC地址格式：12位，字母+数字，字母a至f",
+        "1400": "定位对象信息未找到",
+        "1401": "定位对象名称不能为空",
+        "1402": "定位对象类型不能为空",
+        "1403": "定位对象名称已存在",
+        "1404": "对象已绑定信标，不可修改类型",
+        "1405": "已配置信标，不可删除",
+        "1406": "定位对象已配置其他信标，不可重复配置",
+        "1500": "围栏名称不能为空",
+        "1501": "围栏所属地图不能为空",
+        "1502": "围栏类型不能为空",
+        "1503": "围栏信息未找到",
+        "1504": "围栏需要是一个封闭图形",
+        "1600": "告警信息未找到",
+        "F000": "账号/密码错误",
+        "F001": "失败，未找到登录信息",
+        "F002": "权限校验失败",
+        "F100": "上传文件不能为空",
+        "F101": "上传文件格式错误",
+        "F200": "参数缺失",
+        "FFFF": "失败",
+        "PEFFFF": "参数错误"
+      }
+    },
+    "warning": {
+      "chinese": "不能包含中文",
+      "ip": "ip格式错误"
+    },
+    "plugin": {
+      "datePicker": {
+        "select": "选择时间",
+        "clear": "清空"
+      },
+      "l7": {
+        "tip1": "单击绘制首个节点",
+        "tip2": "单击继续绘制",
+        "tip3": "单击继续绘制,双击结束绘制",
+        "tip4": "可拖拽调整节点位置",
+        "tip5": "可拖拽调整面位置",
+        "tip6": "单击在该位置新增节点"
+      }
+    }
+  },
+
+  "header": {
+    "logout": "退出登录"
+  },
+  "sideBarMenu": {
+    "login": "登录",
+    "home": "总览",
+    "location": "位置管理",
+    "realtimeLocation": "实时位置",
+    "trackingManage": "轨迹追踪",
+    "device": "设备管理",
+    "baseStation": "基站管理",
+    "beaconManage": "信标管理",
+    "objectManage": "对象管理",
+    "warning": "智能告警",
+    "wariningInfo": "告警数据明细",
+    "system": "系统管理",
+    "fenceManage": "围栏管理",
+    "buildingSet": "地图管理",
+    "floorSet": "楼层管理",
+    "serviceSet": "服务管理"
+  },
+  "login": {
+    "tab": "账户密码登录",
+    "user": "账户",
+    "password": "密码",
+    "submit": "登录",
+    "rememberMe": "自动登录",
+    "userNotEmpty": "账户不能为空",
+    "passwordNotEmpty": "密码不能为空"
+  },
+
+  "home": {
+    "pub": {
+      "a": "总数量",
+      "b": "在线数量",
+      "c": "离线数量",
+      "d": "总量"
+    },
+    "card1": {
+      "title": "地图",
+      "a": "基站",
+      "b": "信标",
+      "c": "围栏"
+    },
+    "card2": {
+      "title": "定位概览",
+      "a": "人数",
+      "b": "物品",
+      "c": "设备",
+      "d": "车辆"
+    },
+    "card3": {
+      "title": "在线对象分布",
+      "a": "人员数量",
+      "b": "物品数量",
+      "c": "设备数量",
+      "d": "车辆数量"
+    },
+    "card4": {
+      "title": "24小时告警变化",
+      "a": "次数",
+      "b": "告警次数"
+    },
+    "card5": {
+      "title": "今日告警",
+      "a": "告警数量",
+      "b": "已处理",
+      "c": "未处理",
+      "d": "排名",
+      "e": "告警对象",
+      "f": "告警数量"
+    },
+    "card6": {
+      "title": "信标状态"
+    },
+    "card7": {
+      "title": "基站状态"
+    },
+    "card8": {
+      "title": "今日告警类别占比",
+      "a": "进入围栏",
+      "b": "离开围栏",
+      "c": "进入非关联对象"
+    }
+  },
+  "realtimeLocation": {
+    "title": "实时位置"
+  },
+  "trackingManage": {
+    "title": "轨迹追踪",
+    "warning": {
+      "a": "地图不能为空",
+      "b": "对象不能为空",
+      "c": "日期不能为空"
+    }
+  },
+
+  "baseStation": {
+    "title": "基站数据",
+    "table": {
+      "mac": "MAC地址",
+      "type": "型号",
+      "ip": "基站IP",
+      "location": "位置",
+      "x": "X值",
+      "y": "Y值",
+      "status": "状态"
+    }
+  },
+  "beaconManage": {
+    "title": "信标数据",
+    "add": "录入",
+    "batchAdd": "批量录入",
+    "table": {
+      "mac": "信标MAC",
+      "model": "信标型号",
+      "type": "信标类型",
+      "location": "信标位置",
+      "x": "X值",
+      "y": "Y值",
+      "z": "Z值",
+      "status": "状态",
+      "whetherAdd": "是否录入",
+      "object": "对象",
+      "date": "加入时间",
+      "remark": "备注",
+      "setObject": "配置对象",
+      "objectName": "对象名称"
+    },
+    "selectObject": "选择对象",
+    "downloadscv": "下载通用格式",
+    "uploadFile": "上传数据表",
+    "warning": {
+      "deleteMsg": "信标已绑定对象，不可删除",
+      "macNotEmpty": "信标MAC不能为空",
+      "fileNotEmpty": "文件不能为空",
+      "typeNotEmpat": "信标类型不能为空"
+    },
+    "bindObjectNoDataText": "暂无与信标配置的对象",
+
+    "sort": {
+      "title": "排序方式",
+      "data": {
+        "a": "对象名称排序",
+        "b": "加入时间排序"
+      }
+    }
+  },
+  "objectManage": {
+    "title": "对象数据",
+    "table": {
+      "id": "编号",
+      "name": "对象名称",
+      "type": "对象类型",
+      "icon": "图标",
+      "joinDate": "加入时间",
+      "bindMap": "绑定地图",
+      "bindMapModalTitle": "绑定地图"
+    },
+    "modal": {
+      "nameNotEmpty": "对象名称不能为空",
+      "typeNotEmpty": "对象类型不能为空",
+      "sizeError": "图片大小不能超过10Kb"
+    }
+  },
+
+  "warningInfo": {
+    "title": "告警数据",
+    "table": {
+      "beacon": "信标MAC",
+      "object": "告警对象",
+      "status": "告警状态",
+      "content": "告警内容",
+      "type": "告警类型",
+      "date": "告警时间",
+      "handle": "处理告警"
+    },
+    "warningContent": {
+      "a": "非法闯入",
+      "b": "非法越界",
+      "c": "地图中进入非关联的对象"
+    },
+    "sort": {
+      "data": {
+        "a": "时间正序排序",
+        "b": "时间倒序排序"
+      }
+    }
+  },
+  "fenceManage": {
+    "title": "围栏数据",
+    "mapName": "地图名称",
+    "fenceName": "围栏名称",
+    "fenceType": "围栏类型",
+    "fenceStatus": "围栏状态",
+    "fenceTypeData": {
+      "a": "进入",
+      "b": "离开"
+    },
+    "modal": {
+      "map": "地图选择",
+      "mapIdNotEmpty": "地图不能为空",
+      "fenceNameNotEmpty": "围栏名称不能为空",
+      "fenceTypeNotEmpty": "围栏类型不能为空",
+      "w1": "围栏不能为空",
+      "w2": "只支持一个围栏"
+    },
+    "add": "添加围栏",
+    "edit": "编辑围栏"
+  },
+  "buildingSet": {
+    "title": "建筑数据",
+    "table": {
+      "name": "建筑名称",
+      "address": "地址",
+      "preview": "预览"
+    },
+    "image": "示意图",
+    "modal": {
+      "nameNotEmpty": "建筑名称不能为空",
+      "addressNotEmpty": "地址不能为空",
+      "imageNotEmpty": "示意图不能为空",
+      "sizeErrorMsg": "不能超过2M"
+    },
+    "deleteBuildMsg": "确定删除吗？删除楼宇，楼宇内的全部配置数据将会被清除，请谨慎操作"
+  },
+  "floorSet": {
+    "title": "楼层数据",
+    "table": {
+      "projectName": "项目名称",
+      "cpa": "CPA文件",
+      "mac": "MAC地址",
+      "mapId": "地图ID",
+      "mapName": "地图名称",
+      "mapWidth": "实际地图宽度",
+      "mapHeight": "实际地图长度",
+      "renew": "更新"
+    },
+    "uploadCPA": "上传cpa文件",
+    "localService": "本地服务",
+
+    "modal": {
+      "cpaNameNotEmpty": "cpa文件不能为空",
+      "serviceNotEmpty": "服务不能为空",
+      "uploadErrorMsg": "请上传.cpa文件"
+    }
+  },
+  "serviceSet": {
+    "title": "服务配置",
+    "table": {
+      "localService": "本地服务",
+      "cpuService": "定位服务",
+      "mac": "MAC地址",
+      "onlineStatus": "在线状态",
+      "deviceCode": "机器码",
+      "startStatus": "启动状态",
+      "start": "启动",
+      "stop": "停止",
+      "active": "是否激活",
+      "activeTrue": "已激活",
+      "activeFalse": "未激活",
+      "endDate": "截止日期",
+      "file": "授权文件",
+      "lastFileDate": "最新上传文件时间",
+      "remark": "备注",
+      "uploadFile": "上传授权文件",
+      "editRemark": "请输入备注"
+    },
+    "modal": {
+      "localServerCleLicenseFileNameNotEmpty": "授权文件不能为空",
+      "uploadErrorMsg": "请上传.licence文件",
+      "error2": "授权失败,请重试",
+      "loading": "授权中",
+      "loadingSuccess": "授权成功"
+    }
+  }
+}
