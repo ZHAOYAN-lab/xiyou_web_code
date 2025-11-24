@@ -1,4 +1,4 @@
-import i18n from '@/language'; // 国际化
+import i18n from '@/language';
 
 export default {
   data() {
@@ -18,19 +18,37 @@ export default {
       fenceStatusData: [
         {
           value: 1,
-          label: i18n.messages[i18n.locale].base.undisabled //启用
+          label: i18n.messages[i18n.locale].base.undisabled
         },
         {
           value: 0,
-          label: i18n.messages[i18n.locale].base.disabled //禁用
+          label: i18n.messages[i18n.locale].base.disabled
+        }
+      ],
+      // 货物种类数据（所属类型）
+      belongTypeData: [
+        {
+          value: 1,
+          label: i18n.messages[i18n.locale].fenceManage.cargoType.a
+        },
+        {
+          value: 2,
+          label: i18n.messages[i18n.locale].fenceManage.cargoType.b
         }
       ]
     };
   },
   computed: {},
-  beforeDestroy() {},
-  mounted() {
-    this.$nextTick(() => {});
-  },
-  methods: {}
+  methods: {
+    // 新增：根据 fenceType 获取标签
+    getFenceTypeLabel(value) {
+      const item = this.fenceTypeData.find(d => d.value === value);
+      return item ? item.label : '';
+    },
+    // 新增：根据 belongType 获取标签
+    getBelongTypeLabel(value) {
+      const item = this.belongTypeData.find(d => d.value === value);
+      return item ? item.label : '';
+    }
+  }
 };

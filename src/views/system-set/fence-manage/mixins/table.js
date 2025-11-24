@@ -2,17 +2,16 @@ export default {
   data() {
     return {
       search: {
-        mapCpaName: '', //地图名称
-        fenceName: '', //围栏名称
-        fenceType: '', //围栏类型
-        fenceStatus: '' //围栏状态
+        mapCpaName: '',
+        fenceName: '',
+        fenceType: '',
+        fenceStatus: ''
       },
       table: {
         columns: []
       }
     };
   },
-
   mounted() {
     this.$nextTick(() => {
       this.tableInit();
@@ -21,48 +20,85 @@ export default {
   methods: {
     tableInit() {
       this.table.columns = [
+        // 对象名称
+        {
+          title: this.$t('fenceManage.objectName'),
+          minWidth: 150,
+          align: 'center',
+          render: (h, params) => {
+            return h('span', params.row.objectName || '-');
+          }
+        },
+        // 所属类型
+        {
+          title: this.$t('fenceManage.belongType'),
+          minWidth: 150,
+          align: 'center',
+          render: (h, params) => {
+            const item = params.row;
+            const typeLabel = this.belongTypeData.find(ele => ele.value === item.belongType);
+            return h('span', typeLabel ? typeLabel.label : '-');
+          }
+        },
+        // 图标（新增）
+        {
+          title: this.$t('fenceManage.icon'),
+          minWidth: 100,
+          align: 'center',
+          render: (h, params) => {
+            const iconUrl = params.row.iconUrl;
+            if (iconUrl) {
+              return h('img', {
+                attrs: {
+                  src: iconUrl,
+                  alt: 'icon'
+                },
+                style: {
+                  width: '32px',
+                  height: '32px',
+                  objectFit: 'contain'
+                }
+              });
+            }
+            return h('span', '-');
+          }
+        },
+        // 地图名称
         {
           title: this.$t('fenceManage.mapName'),
           minWidth: 130,
           align: 'center',
           render: (h, params) => {
-            let item = params.row;
-            return h('div', [h('span', item.fenceMap.mapCpaName)]);
+            return h('span', params.row.fenceMap?.mapCpaName || '-');
           }
         },
+        // 围栏名称
         {
           title: this.$t('fenceManage.fenceName'),
           minWidth: 170,
           align: 'center',
           render: (h, params) => {
-            let item = params.row;
-            return h('div', [h('span', item.fenceName)]);
+            return h('span', params.row.fenceName || '-');
           }
         },
+        // 围栏类型
         {
           title: this.$t('fenceManage.fenceType'),
           minWidth: 180,
           align: 'center',
           render: (h, params) => {
-            let item = params.row;
-
-            return h(
-              'span',
-              this.fenceTypeData.reduce((str, ele) => {
-                if (ele.value === item.fenceType) {
-                  str = ele.label;
-                }
-                return str;
-              }, '')
-            );
+            const item = params.row;
+            const typeLabel = this.fenceTypeData.find(ele => ele.value === item.fenceType);
+            return h('span', typeLabel ? typeLabel.label : '-');
           }
         },
+        // 围栏状态
         {
           title: this.$t('fenceManage.fenceStatus'),
           minWidth: 220,
           align: 'center',
           render: (h, params) => {
-            let item = params.row;
+            const item = params.row;
             return h('Badge', {
               props: {
                 color: item.fenceStatus ? 'green' : 'red',
@@ -71,16 +107,16 @@ export default {
             });
           }
         },
+        // 操作列
         {
           title: this.$t('base.option'),
           width: 200,
           fixed: 'right',
           align: 'center',
           render: (h, params) => {
-            let item = params.row;
-            // console.log(JSON.stringify(item, null, 2));
-
+            const item = params.row;
             return h('div', { class: 'table-option' }, [
+              // 启用/禁用
               h(
                 'span',
                 {
@@ -93,6 +129,7 @@ export default {
                 },
                 item.fenceStatus ? this.$t('base.disabled') : this.$t('base.undisabled')
               ),
+              // 查看
               h(
                 'span',
                 {
@@ -104,6 +141,7 @@ export default {
                 },
                 this.$t('base.see')
               ),
+              // 编辑
               h(
                 'span',
                 {
@@ -116,7 +154,7 @@ export default {
                 },
                 this.$t('base.edit')
               ),
-
+              // 删除
               h(
                 'span',
                 {
@@ -135,7 +173,7 @@ export default {
     },
 
     tableGetData() {
-      let query = this.$pub.slDeleteEmptyField(this.search);
+      const query = this.$pub.slDeleteEmptyField(this.search);
 
       if (Object.hasOwnProperty.call(query, 'fenceStatus')) {
         query.fenceStatus = Boolean(query.fenceStatus);
@@ -160,7 +198,7 @@ export default {
       });
     },
 
-    // 启用禁用
+    // 启用/禁用
     tableSetStatus(item) {
       this.$api
         .fenceManageSetStatus({
@@ -170,7 +208,8 @@ export default {
           }
         })
         .then(() => {
-          this.handleRefreshTable();
+          this.$refs.slComTable.handleRefreshtable();
+          this.$Message.success(this.$t('base.optionSuccess'));
         });
     },
 
@@ -179,7 +218,6 @@ export default {
       this.$Modal.confirm({
         title: this.$t('base.delete'),
         content: this.$t('base.sureDelete'),
-        // loading: true,
         okText: this.$t('base.sure'),
         cancelText: this.$t('base.cancel'),
         onOk: () => {
@@ -190,7 +228,7 @@ export default {
               }
             })
             .then(() => {
-              this.handleRefreshTable();
+              this.$refs.slComTable.handleRefreshtable();
               this.$Modal.remove();
               this.$Message.success(this.$t('base.deleteSuccess'));
             });

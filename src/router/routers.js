@@ -188,6 +188,15 @@ export default [
           title: i18n.messages[i18n.locale].sideBarMenu.serviceSet
         },
         component: () => import('@/views/system-set/service-set')
+      },
+      {
+        path: 'task_manage',
+        name: 'TaskManage',
+        meta: {
+          title: '任务管理',
+          icon: 'md-list-box'
+        },
+        component: () => import('@/views/system-set/TaskManage.vue')
       }
     ]
   }
