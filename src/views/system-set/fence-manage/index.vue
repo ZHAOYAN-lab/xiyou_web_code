@@ -56,32 +56,19 @@
     <Card :bordered="false" class="sl-margin-top-12" dis-hover>
       <p slot="title">{{ $t('fenceManage.title') }}</p>
 
-      <Button slot="extra" type="primary" @click="addMethod">{{ $t('base.add') }}</Button>
-      
-      <!-- 添加调试信息 -->
-      <div style="margin: 10px; padding: 10px; background: #f0f0f0; border: 1px solid #ccc;">
-        <p><strong>调试信息：</strong></p>
-        <p>table.columns 长度: {{ table.columns.length }}</p>
-        <p>fenceTypeData 长度: {{ fenceTypeData.length }}</p>
-        <p>belongTypeData 长度: {{ belongTypeData.length }}</p>
-        <Button size="small" @click="manualInit">手动初始化表格</Button>
-        <Button size="small" @click="manualGetData" style="margin-left: 10px;">手动获取数据</Button>
-      </div>
-
+      <Button slot="extra" type="primary" @click="addMethod"> {{ $t('base.add') }} </Button>
       <div>
-        <sl-table 
-          ref="slComTable" 
-          :t-id="'demo-table'" 
-          :t-columns="table.columns"
-        ></sl-table>
+        <sl-table ref="slComTable" :t-id="'demo-table'" :t-columns="table.columns"> </sl-table>
       </div>
     </Card>
 
+    <!-- 添加/编辑 -->
     <add-fence ref="addFence" @handleRefreshTable="handleRefreshTable" />
+
+    <!-- 查看 -->
     <fence-detail ref="fenceDetail" />
   </div>
 </template>
-
 <script>
 import { mapState } from 'vuex';
 import pubData from './mixins/data';
@@ -98,51 +85,26 @@ export default {
     return {};
   },
   computed: mapState({}),
-  watch: {
-    'table.columns': {
-      handler(newVal) {
-        console.log('✅ table.columns 发生变化:', newVal.length, '列');
-      },
-      deep: true
-    }
-  },
+  watch: {},
+  beforeDestroy() {},
   mounted() {
-    console.log('🚀 页面 mounted');
-    console.log('📊 fenceTypeData:', this.fenceTypeData);
-    console.log('📊 belongTypeData:', this.belongTypeData);
-    console.log('📊 初始 table.columns:', this.table.columns);
-    
     this.$nextTick(() => {
-      console.log('⏰ nextTick 执行');
-      console.log('📋 准备调用 tableGetData');
       this.tableGetData();
     });
   },
+
   methods: {
     addMethod() {
       this.$refs.addFence.show();
     },
 
+    // 添加编辑成功回调
     handleRefreshTable() {
       this.$refs.slComTable.handleRefreshtable();
-    },
-
-    // 手动初始化
-    manualInit() {
-      console.log('🔧 手动调用 tableInit');
-      this.tableInit();
-      console.log('✅ tableInit 执行完毕，columns:', this.table.columns);
-    },
-
-    // 手动获取数据
-    manualGetData() {
-      console.log('🔧 手动调用 tableGetData');
-      this.tableGetData();
     }
   }
 };
 </script>
-
 <style lang="less" scoped>
 @import url('./index.less');
 </style>

@@ -42,38 +42,6 @@
                 }}</Option>
               </Select>
             </FormItem>
-            
-            <FormItem :label="$t('fenceManage.objectName')" prop="objectName">
-              <Input
-                v-model="modal.data.objectName"
-                class="sl-width-300"
-                :placeholder="$t('base.input')"
-                clearable
-              ></Input>
-            </FormItem>
-
-            <FormItem :label="$t('fenceManage.belongType')" prop="belongType">
-              <Select
-                v-model="modal.data.belongType"
-                :placeholder="$t('base.select')"
-                class="sl-width-300"
-              >
-                <Option v-for="(item, index) in belongTypeData" :key="index" :value="item.value">{{
-                  item.label
-                }}</Option>
-              </Select>
-            </FormItem>
-
-            <FormItem :label="$t('fenceManage.icon')" prop="iconUrl">
-              <SlUpload 
-                v-model="modal.data.iconUrl" 
-                :target-key="'iconUrl'" 
-                :limit-size="10" 
-                :limit-unit="'kb'" 
-                :limit-count="1"
-                :hint="$t('fenceManage.uploadHint')"
-              />
-            </FormItem>
           </Form>
         </div>
 
@@ -96,10 +64,9 @@
     </Modal>
   </div>
 </template>
-
 <script>
 import pubData from '../../mixins/data';
-import i18n from '@/language';
+import i18n from '@/language'; // 国际化
 
 export default {
   name: 'AddXinbiao',
@@ -116,10 +83,7 @@ export default {
         data: {
           mapId: '',
           fenceName: '',
-          fenceType: '',
-          objectName: '',
-          belongType: '',
-          iconUrl: ''
+          fenceType: ''
         },
         dataValidate: {
           mapId: [
@@ -144,23 +108,9 @@ export default {
               message: i18n.messages[i18n.locale].fenceManage.modal.fenceTypeNotEmpty,
               trigger: 'change'
             }
-          ],
-          objectName: [
-            {
-              required: true,
-              message: i18n.messages[i18n.locale].base.objectNameNotEmpty,
-              trigger: 'blur'
-            }
-          ],
-          belongType: [
-            {
-              required: true,
-              type: 'number', 
-              message: i18n.messages[i18n.locale].base.belongTypeNotEmpty,
-              trigger: 'change'
-            }
           ]
         },
+
         slMap: {
           show: false
         }
@@ -181,20 +131,14 @@ export default {
       this.$refs.formValidate.resetFields();
 
       if (item) {
-        // 编辑模式
+        // 编辑
+
         let mapId = item.fenceMap.mapId;
         m.title.value = this.$t('fenceManage.edit');
         m.item = item;
-        
-        // 设置地图级联选择器
         this.$refs.mapCascader.setValue(mapId);
-        
-        // 填充表单数据
-        data.fenceName = item.fenceName || '';
-        data.fenceType = item.fenceType || '';
-        data.objectName = item.objectName || '';
-        data.belongType = item.belongType || '';
-        data.iconUrl = item.iconUrl || '';
+        data.fenceName = item.fenceName;
+        data.fenceType = item.fenceType;
 
         this.$nextTick(() => {
           this.mapOnChange(mapId, [
@@ -206,26 +150,23 @@ export default {
           ]);
         });
       } else {
-        // 新增模式
+        // 添加
+
+        let mapCascader = this.$refs.mapCascader;
         m.title.value = this.$t('fenceManage.add');
         m.item = null;
-        
-        // 重置表单数据
         data.fenceName = '';
         data.fenceType = '';
-        data.objectName = '';
-        data.belongType = '';
-        data.iconUrl = '';
 
-        this.$refs.mapCascader.setValue();
+        mapCascader.setValue();
       }
 
       m.show = true;
     },
-
     // 切换地图
     mapOnChange(value, fenceData) {
       let m = this.modal;
+
       m.data.mapId = value;
 
       this.$api
@@ -242,7 +183,6 @@ export default {
     sll7Init(data, fenceData) {
       let m = this.modal;
       m.slMap.show = false;
-      
       this.$nextTick(() => {
         m.slMap.show = true;
 
@@ -250,9 +190,10 @@ export default {
           let sll7 = this.$refs.sll7;
 
           sll7.mapInit().then(() => {
-            // 设置底图
+            // 底图
             sll7.mapSetBackgroundImage(data);
-            // 设置围栏（可编辑）
+
+            //围栏(可以编辑)
             sll7.polygonLayerSetEdit(fenceData ? fenceData : []);
           });
         });
@@ -261,10 +202,10 @@ export default {
 
     modalCancel() {
       let m = this.modal;
+
       m.slMap.show = false;
       m.show = false;
     },
-
     modalSure() {
       this.$refs.formValidate.validate((valid) => {
         if (valid) {
@@ -288,10 +229,7 @@ export default {
               fenceId: m.item ? m.item.fenceId : '',
               fenceName: data.fenceName,
               fenceType: data.fenceType,
-              fenceContent: fp[0],
-              objectName: data.objectName,
-              belongType: data.belongType,
-              iconUrl: data.iconUrl
+              fenceContent: fp[0]
             };
 
             this.$api.fenceManageAddEdit({ data: updata }).then(() => {
@@ -308,7 +246,6 @@ export default {
   }
 };
 </script>
-
 <style lang="less" scoped>
 @import url('./index.less');
 </style>
