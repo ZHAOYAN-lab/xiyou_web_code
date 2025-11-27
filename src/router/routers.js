@@ -80,6 +80,7 @@ export default [
       }
     ]
   },
+
   {
     path: '/device',
     name: 'device',
@@ -146,6 +147,7 @@ export default [
       }
     ]
   },
+
   {
     path: '/system',
     name: 'system',
@@ -197,6 +199,17 @@ export default [
           icon: 'md-list-box'
         },
         component: () => import('@/views/system-set/TaskManage.vue')
+      },
+
+      // ⭐⭐⭐ 新增：商品区域设置 ⭐⭐⭐
+      {
+        path: 'product_area',
+        name: 'product_area',
+        meta: {
+          title: '商品区域设置',
+          icon: 'md-apps'
+        },
+        component: () => import('@/views/system-set/product-area/index.vue')
       }
     ]
   }
