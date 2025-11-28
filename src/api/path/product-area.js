@@ -12,7 +12,8 @@ export function addProductArea(data) {
       objectName: data.objectName,
       belongType: data.belongType,
       iconUrl: data.iconUrl,
-      mapIds: Array.isArray(data.mapIds) ? data.mapIds.join(',') : data.mapIds
+      mapIds: Array.isArray(data.mapIds) ? data.mapIds.join(',') : data.mapIds,
+      areaContent: data.areaContent || null     // ★ 新增：绘制区域
     }
   })
 }
@@ -25,12 +26,13 @@ export function updateProductArea(data) {
       objectName: data.objectName,
       belongType: data.belongType,
       iconUrl: data.iconUrl,
-      mapIds: Array.isArray(data.mapIds) ? data.mapIds.join(',') : data.mapIds
+      mapIds: Array.isArray(data.mapIds) ? data.mapIds.join(',') : data.mapIds,
+      areaContent: data.areaContent || null     // ★ 新增：绘制区域
     }
   })
 }
 
-// ⭐⭐⭐ 删除区域 ⭐⭐⭐
+// 删除区域
 export function deleteProductArea(params) {
   return post('/ifengniao/cloud/server/xiyou/productArea/delete', {
     data: {
@@ -38,8 +40,6 @@ export function deleteProductArea(params) {
     }
   })
 }
-
-
 
 // 获取所属类型列表
 export function getProductAreaTypes() {

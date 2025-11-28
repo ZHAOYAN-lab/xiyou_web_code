@@ -5,7 +5,7 @@ export default {
     return {
       tableLoading: false,
 
-      // ⭐ columns 必须在这里统一定义
+      // 列定义
       columns: [
         { title: "对象名称", slot: "objectName" },
         { title: "所属类型", slot: "belongType" },

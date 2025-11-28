@@ -65,15 +65,12 @@ export default {
       this.$refs.addProductArea.show(row);
     },
 
-    /** ⭐⭐⭐ 完整覆盖 handleDelete —— 使用新的删除 API ⭐⭐⭐ */
+    /** 删除 */
     handleDelete(row) {
-
       this.$Modal.confirm({
         title: "确认删除？",
         content: `确定删除【${row.objectName}】吗？`,
         onOk: () => {
-
-          // ★ areaId 是唯一正确参数
           deleteProductArea({ areaId: row.areaId })
             .then(() => {
               this.$Message.success("删除成功")
@@ -82,7 +79,6 @@ export default {
             .catch(err => {
               this.$Message.error(err?.msg || "删除失败")
             })
-
         }
       })
     }
