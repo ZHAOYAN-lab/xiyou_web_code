@@ -14,10 +14,8 @@ export default {
 
       getProductAreaList()
         .then(res => {
-          // axios 拦截器已处理，res 就是数组 detail 本身
           this.tableData = Array.isArray(res) ? res : [];
 
-          // 防止 undefined 渲染报错
           this.tableData.forEach(item => {
             item.mapNames = item.mapNames || '未绑定';
             item.belongType = item.belongType || '未设置';
@@ -64,26 +62,36 @@ export default {
       });
     },
 
-    // 删除
+    // ⭐⭐⭐ 删除方法 ⭐⭐⭐
     handleDelete(row) {
-
-      console.log("点击删除按钮 row =", row); // ★ 调试用
-
+      console.log("🔴🔴🔴 handleDelete 开始执行");
+      console.log("🔴 row =", JSON.stringify(row, null, 2));
+      console.log("🔴 row.areaId =", row.areaId);
+      
+      // ⭐ 直接用字符串模板，避免 row 对象的问题
+      const areaName = row.objectName || '该区域';
+      
       this.$Modal.confirm({
         title: "确认删除？",
-        content: `确定删除【${row.objectName}】吗？`,
+        content: `确定删除【${areaName}】吗？`,
         onOk: () => {
-
-          console.log("发送删除请求，areaId =", row.areaId); // ★ 调试用
-
-          // ⭐⭐最终正确调用方式（强制用对象传参）⭐⭐
-          deleteProductArea({ areaId: row.areaId }).then(() => {
-            this.$Message.success("删除成功");
-            this.loadTable();
-          }).catch(err => {
-            this.$Message.error(err.msg || "删除失败");
-          });
-
+          console.log("🟢🟢🟢 用户点击确认");
+          console.log("🟢 准备调用 API，参数:", { areaId: row.areaId });
+          
+          return deleteProductArea({ areaId: row.areaId })
+            .then((res) => {
+              console.log("🟢 删除成功，返回:", res);
+              this.$Message.success("删除成功");
+              this.loadTable();
+            })
+            .catch(err => {
+              console.log("🔴 删除失败，错误:", err);
+              console.log("🔴 错误对象:", JSON.stringify(err, null, 2));
+              this.$Message.error(err?.msg || err?.message || "删除失败");
+            });
+        },
+        onCancel: () => {
+          console.log("⚪ 用户取消");
         }
       });
     }

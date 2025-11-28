@@ -30,14 +30,15 @@ export function updateProductArea(data) {
   })
 }
 
-// 删除区域
-export function deleteProductArea(areaId) {
-  return request({
-    url: '/ifengniao/cloud/server/xiyou/productArea/delete',
-    method: 'post',
-    data: { areaId }
+// ⭐⭐⭐ 删除区域 ⭐⭐⭐
+export function deleteProductArea(params) {
+  return post('/ifengniao/cloud/server/xiyou/productArea/delete', {
+    data: {
+      areaId: params.areaId
+    }
   })
 }
+
 
 
 // 获取所属类型列表

@@ -27,14 +27,13 @@
 
         <template slot="action" slot-scope="{ row }">
           <Button type="text" @click="handleEdit(row)">编辑</Button>
-          <!-- 绑定地图的功能合并到编辑弹窗里，不再单独出一个按钮 -->
           <Button type="text" @click="handleDelete(row)">删除</Button>
         </template>
 
       </Table>
     </Card>
 
-    <!-- 新增/编辑 商品区域（复刻围栏 AddFence 的思路） -->
+    <!-- 新增/编辑 商品区域 -->
     <AddProductArea ref="addProductArea" @success="loadTable" />
   </div>
 </template>
@@ -44,6 +43,10 @@ import mixinData from './mixins/data'
 import mixinTable from './mixins/table'
 import mixinMethods from './mixins/methods'
 
+import {
+  deleteProductArea
+} from '@/api/path/product-area'
+
 import AddProductArea from './components/AddProductArea.vue'
 
 export default {
@@ -52,14 +55,37 @@ export default {
   components: { AddProductArea },
 
   methods: {
-    // 覆盖掉 mixin 里的 handleAdd / handleEdit，让它们走新的弹窗
+    /** 覆盖 mixin 里的新增 */
     handleAdd() {
       this.$refs.addProductArea.show();
     },
+
+    /** 覆盖 mixin 里的编辑 */
     handleEdit(row) {
       this.$refs.addProductArea.show(row);
+    },
+
+    /** ⭐⭐⭐ 完整覆盖 handleDelete —— 使用新的删除 API ⭐⭐⭐ */
+    handleDelete(row) {
+
+      this.$Modal.confirm({
+        title: "确认删除？",
+        content: `确定删除【${row.objectName}】吗？`,
+        onOk: () => {
+
+          // ★ areaId 是唯一正确参数
+          deleteProductArea({ areaId: row.areaId })
+            .then(() => {
+              this.$Message.success("删除成功")
+              this.loadTable()
+            })
+            .catch(err => {
+              this.$Message.error(err?.msg || "删除失败")
+            })
+
+        }
+      })
     }
-    // handleDelete 依然用你 mixinMethods 里的，不用改
   }
 }
 </script>
