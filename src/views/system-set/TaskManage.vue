@@ -90,9 +90,13 @@
 
         <FormItem label="选择员工" required>
           <Select v-model="dispatchForm.employees" multiple>
-            <Option value="张三">张三</Option>
-            <Option value="李四">李四</Option>
-            <Option value="王五">王五</Option>
+            <Option 
+              v-for="item in employeeList" 
+              :key="item.locationObjectId"
+              :value="item.locationObjectName"
+            >
+              {{ item.locationObjectName }}
+            </Option>
           </Select>
         </FormItem>
 
@@ -109,6 +113,7 @@
 <script>
 import taskApi from '@/api/path/task'
 import productAreaApi from '@/api/path/product-area'
+import objectManageApi from '@/api/path/object-manage'   // ★ 新增：读取定位对象列表
 
 export default {
   name: "TaskManage",
@@ -121,14 +126,13 @@ export default {
       pageSize: 10,
       total: 0,
 
-      // 弹窗
       addDialogVisible: false,
       dispatchDialogVisible: false,
 
-      // 区域列表
       areaList: [],
 
-      // 新增任务表单
+      employeeList: [],   // ★ 新增：location_object 员工列表
+
       addForm: {
         objectName: "",
         taskType: "",
@@ -160,38 +164,49 @@ export default {
 
   created() {
     this.fetchAreaList();
+    this.fetchEmployeeList();   // ★ 加载员工
     this.fetchData();
   },
 
   activated() {
     this.fetchAreaList();
+    this.fetchEmployeeList();
     this.fetchData();
   },
 
   methods: {
+
+    /* 状态颜色 */
     getStatusColor(status) {
       if (status === "已派发") return "orange";
       if (status === "执行中") return "green";
       return "default";
     },
 
-    // ⭐⭐⭐ 关键：请求商品区域列表（已经修复，不会再不发请求） ⭐⭐⭐
+    /* 获取区域列表 */
     fetchAreaList() {
       productAreaApi.getProductAreaList()
         .then(res => {
-          if (!res) {
-            this.areaList = [];
-            return;
-          }
           if (Array.isArray(res)) this.areaList = res;
           else if (Array.isArray(res.list)) this.areaList = res.list;
           else this.areaList = [];
-        })
-        .catch(err => {
-          console.error("商品区域请求失败 =", err);
         });
     },
 
+    /* ★ 获取员工列表（来自 xy_location_object） */
+    fetchEmployeeList() {
+      objectManageApi.objectManageGetAllAvailable({})
+        .then(res => {
+          if (Array.isArray(res)) this.employeeList = res;
+          else if (res?.detail && Array.isArray(res.detail)) this.employeeList = res.detail;
+          else this.employeeList = [];
+        })
+        .catch(() => {
+          this.employeeList = [];
+        });
+    },
+
+    /* 加载任务列表 */
     fetchData() {
       this.tableLoading = true;
       taskApi.taskGetList({ page: this.page, size: this.pageSize })
@@ -199,9 +214,7 @@ export default {
           this.tableData = res.list || [];
           this.total = res.total || 0;
         })
-        .finally(() => {
-          this.tableLoading = false;
-        });
+        .finally(() => this.tableLoading = false);
     },
 
     handlePageChange(p) {
@@ -209,6 +222,7 @@ export default {
       this.fetchData();
     },
 
+    /* 新增任务 */
     handleOpenAdd() {
       this.addForm = { objectName: "", taskType: "", areaId: null };
       this.addDialogVisible = true;
@@ -232,12 +246,14 @@ export default {
       });
     },
 
+    /* 打开派发弹窗 */
     handleOpenDispatch(row) {
       this.currentDispatchRow = row;
       this.dispatchForm.employees = [];
       this.dispatchDialogVisible = true;
     },
 
+    /* 派发任务 */
     submitDispatch() {
       taskApi.taskDispatch({
         taskId: this.currentDispatchRow.id,
@@ -249,6 +265,7 @@ export default {
       });
     },
 
+    /* 取消任务 */
     handleCancelDispatch(row) {
       taskApi.taskCancel({ taskId: row.id }).then(() => {
         this.$Message.success("已取消任务");
@@ -256,6 +273,7 @@ export default {
       });
     },
 
+    /* 删除 */
     handleDelete(row) {
       this.$Modal.confirm({
         title: "确认删除？",
