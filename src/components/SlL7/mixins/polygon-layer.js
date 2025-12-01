@@ -2,10 +2,11 @@
  * @Author: shenlan
  * @Company: 蜂鸟创新
  * @Date: 2023-07-07 11:40:36
- * @LastEditors: shenlan
- * @LastEditTime: 2023-08-21 12:00:23
- * @Description: 围栏
+ * @LastEditors: shenlan（修复商品区域 / 围栏新增、编辑、回显兼容问题）
+ * @LastEditTime: 2025-12-01
+ * @Description: 围栏 & 商品区域编辑层（稳定版）
  */
+
 import {
   PolygonLayer,
   l7Scale,
@@ -15,23 +16,23 @@ import {
   l7ConvertWebToData
 } from './l7';
 import { DrawPolygon } from '@antv/l7-draw';
+
 export default {
   data() {
     return {
       polygonLayer: {
         source: [],
         layer: [],
-        hasLayer: false //是否画到页面数据
+        hasLayer: false
       }
     };
   },
-  computed: {},
-  beforeDestroy() {},
-  mounted() {
-    this.$nextTick(() => {});
-  },
+
   methods: {
-    // 画围栏
+
+    /***************************************
+     * 一：静态显示（仅展示，不可编辑）
+     ***************************************/
     polygonLayerSetData(params) {
       let polygonLayer = this.polygonLayer;
 
@@ -69,11 +70,10 @@ export default {
         };
 
         polygonLayer.source.push(source);
-
         this.handlePolygonLayer(source);
       });
     },
-    // 画围栏
+
     handlePolygonLayer(source) {
       let polygonLayerData = new PolygonLayer({
         zIndex: 4,
@@ -95,37 +95,41 @@ export default {
       }
     },
 
-    // 自定义围栏
-    polygonLayerSetEdit(params) {
-      let l7MapWidth = this.l7MapWidth;
+    /***************************************
+     * 二：编辑模式（可新增、编辑 polygon）
+     ***************************************/
+    polygonLayerSetEdit(params = []) {
 
-      let backData = params.reduce((arr, fence) => {
-        arr.push({
-          type: 'Feature',
-          properties: {},
-          geometry: {
-            type: 'Polygon',
-            coordinates: [
-              fence.points.map((item) => {
-                return l7ConvertCMtoL(
-                  [
-                    ...l7ConvertDataToWeb({
-                      mapMetersPerPixel: this.mapMetersPerPixel,
-                      mapOriginPixelX: this.mapOriginPixelX,
-                      mapOriginPixelY: this.mapOriginPixelY,
-                      x: item.x,
-                      y: item.y
-                    })
-                  ],
-                  l7MapWidth
-                );
-              })
-            ]
-          }
-        });
-        return arr;
-      }, []);
+      // 过滤非法数据，必须是 points 数组且至少 3 个点
+      const validFences = (params || []).filter(f =>
+        Array.isArray(f.points) && f.points.length >= 3
+      );
 
+      let backData = validFences.map((fence) => ({
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'Polygon',
+          coordinates: [
+            fence.points.map((item) => {
+              return l7ConvertCMtoL(
+                [
+                  ...l7ConvertDataToWeb({
+                    mapMetersPerPixel: this.mapMetersPerPixel,
+                    mapOriginPixelX: this.mapOriginPixelX,
+                    mapOriginPixelY: this.mapOriginPixelY,
+                    x: item.x,
+                    y: item.y
+                  })
+                ],
+                this.l7MapWidth
+              );
+            })
+          ]
+        }
+      }));
+
+      // 初始化 DrawPolygon（即使 backData 空，也要初始化，不然后续 getPolygonData 会 undefined）
       const drawer = new DrawPolygon(this.scene, {
         initialData: backData,
         liveUpdate: true,
@@ -155,17 +159,30 @@ export default {
       this.scene.drawer = drawer;
     },
 
-    // 获取画的围栏数据
+    /***************************************
+     * 三：获取绘制后的 polygon（存数据库用）
+     ***************************************/
     polygonLayerGetData() {
-      let l7MapWidth = this.l7MapWidth;
+
+      // drawer 未初始化 → 安全返回空数组
+      if (!this.scene || !this.scene.drawer || typeof this.scene.drawer.getPolygonData !== 'function') {
+        return [];
+      }
+
       let getPolygonData = this.scene.drawer.getPolygonData();
 
+      if (!Array.isArray(getPolygonData) || getPolygonData.length === 0) {
+        return [];
+      }
+
+      let l7MapWidth = this.l7MapWidth;
       let mapMetersPerPixel = this.mapMetersPerPixel;
       let mapOriginPixelX = this.mapOriginPixelX;
       let mapOriginPixelY = this.mapOriginPixelY;
 
-      let points = getPolygonData.map((item) => {
-        const coordinate = item.geometry.coordinates?.[0];
+      const points = getPolygonData.map((item) => {
+        const coordinate = item?.geometry?.coordinates?.[0] || [];
+
         return coordinate.map((v) => {
           const [lng, lat] = v ?? [];
 
@@ -178,6 +195,7 @@ export default {
             x,
             y
           });
+
           return { x: arr[0], y: arr[1] };
         });
       });
@@ -185,7 +203,9 @@ export default {
       return points;
     },
 
-    // 隐藏/显示 围栏
+    /***************************************
+     * 四：隐藏/显示 围栏
+     ***************************************/
     polygonLayerToggle(value) {
       let polygonLayer = this.polygonLayer;
       if (value) {
