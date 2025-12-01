@@ -1,8 +1,16 @@
+/*
+ * @Author: shenlan
+ * @Description: 商品区域 API
+ */
 import { get, post } from '@/api/http/axios'
 
-// 查询区域列表
-export function getProductAreaList(data) {
-  return get('/ifengniao/cloud/server/xiyou/productArea/list', { data })
+// ★★★ 必改：获取区域列表（必须使用 params 才会发 GET 请求）
+export function getProductAreaList() {
+  console.log("=== 调用 getProductAreaList API ===");
+
+  return get('/ifengniao/cloud/server/xiyou/productArea/list', {
+    params: { _: Date.now() }  // 防止缓存，确保请求必发
+  });
 }
 
 // 新增区域
@@ -13,9 +21,9 @@ export function addProductArea(data) {
       belongType: data.belongType,
       iconUrl: data.iconUrl,
       mapIds: Array.isArray(data.mapIds) ? data.mapIds.join(',') : data.mapIds,
-      areaContent: data.areaContent || null     // ★ 新增：绘制区域
+      areaContent: data.areaContent || null
     }
-  })
+  });
 }
 
 // 更新区域
@@ -27,9 +35,9 @@ export function updateProductArea(data) {
       belongType: data.belongType,
       iconUrl: data.iconUrl,
       mapIds: Array.isArray(data.mapIds) ? data.mapIds.join(',') : data.mapIds,
-      areaContent: data.areaContent || null     // ★ 新增：绘制区域
+      areaContent: data.areaContent || null
     }
-  })
+  });
 }
 
 // 删除区域
@@ -38,10 +46,21 @@ export function deleteProductArea(params) {
     data: {
       areaId: params.areaId
     }
-  })
+  });
 }
 
-// 获取所属类型列表
+// 区域类型
 export function getProductAreaTypes() {
-  return get('/ifengniao/cloud/server/xiyou/productArea/types')
+  return get('/ifengniao/cloud/server/xiyou/productArea/types', {
+    params: { _: Date.now() }
+  });
 }
+
+// ★★★ 关键补充：默认导出，TaskManage.vue 才能正常 import ★★★
+export default {
+  getProductAreaList,
+  addProductArea,
+  updateProductArea,
+  deleteProductArea,
+  getProductAreaTypes
+};
