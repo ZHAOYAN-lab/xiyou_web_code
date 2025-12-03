@@ -18,7 +18,7 @@ export function taskAdd(data) {
   });
 }
 
-// ★★★ 必改：派发任务必须用 URL 参数，不支持 JSON Body ★★★
+// ★★★ 派发任务必须用 URL 参数，不支持 JSON Body ★★★
 export function taskDispatch(data) {
   const employeesStr = Array.isArray(data.employees)
     ? data.employees.join(',')
@@ -44,10 +44,16 @@ export function taskDelete(data) {
   });
 }
 
+/* ★★★★★ 新增：手机端自动获取我的任务 ★★★★★ */
+export function taskGetMyTask(param) {
+  return get(`${baseUrl}/mobile/current`, param);
+}
+
 export default {
   taskGetList,
   taskAdd,
   taskDispatch,
   taskCancel,
-  taskDelete
+  taskDelete,
+  taskGetMyTask
 };

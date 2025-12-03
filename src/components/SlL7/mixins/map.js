@@ -11,9 +11,21 @@ export default {
   data() {
     return {
       scene: null,
-      l7MapWidth: 0, //转换值时的参数,
+      l7MapWidth: 0, //转换值时的参数
       l7ImageMap: null, //底图
-      mapCenter: [] //当前图的中心点,
+      mapCenter: [], //当前图的中心点
+
+      // ========= 导航相关 ==============
+      currentPos: null, // 实时位置（BLE）
+      nav: {
+        enabled: false,     // 是否正在导航
+        startPos: null,     // 起点
+        targetPos: null,    // 终点
+        fullRoute: [],      // 完整路线
+        walkedRoute: [],    // 已走路线
+        remainRoute: []     // 未走路线
+      }
+      // ================================
     };
   },
   computed: {},
@@ -28,6 +40,9 @@ export default {
     this.$nextTick(() => {});
   },
   methods: {
+    /**************************
+     * 地图初始化
+     **************************/
     mapInit(zoom = 19.85) {
       return new Promise((resolve) => {
         const scene = new Scene({
@@ -38,7 +53,6 @@ export default {
             center: [0, 0],
             pitch: 0,
             zoom: zoom
-
             // minZoom: 18
           })
         });
@@ -56,7 +70,9 @@ export default {
       });
     },
 
-    // 画底图
+    /**************************
+     * 画底图
+     **************************/
     mapSetBackgroundImage(data) {
       console.log('地图高度：', data);
       let scene = this.scene;
@@ -97,7 +113,10 @@ export default {
 
       scene.addLayer(layer);
     },
-    // 清除所有数据
+
+    /**************************
+     * 清除所有数据
+     **************************/
     mapClear() {
       try {
         let scene = this.scene;
@@ -127,6 +146,11 @@ export default {
             scene.removeLayer(item);
           });
         }
+
+        // 清空导航轨迹
+        try {
+          this.guijiClear && this.guijiClear();
+        } catch (e) {}
       } catch (error) {
         // console.log(error);
       }
@@ -136,7 +160,9 @@ export default {
       return this.scene;
     },
 
-    // 假数据
+    /**************************
+     * 假数据（原样保留）
+     **************************/
     l7DemoData() {
       return {
         // 信标
@@ -357,7 +383,9 @@ export default {
       };
     },
 
-    // 设置中心点
+    /**************************
+     * 设置中心点
+     **************************/
     mapSetCenter() {
       console.log('重置地图中心点');
 
@@ -367,6 +395,153 @@ export default {
     mapResize() {
       this.mapSetCenter();
       // this.mapSetZoom();
+    },
+
+    /**************************
+     * ========= 导航部分 =========
+     **************************/
+
+    // 外部：设置导航终点（例如点击地图 / 商品区域中心）
+    navSetTarget(x, y) {
+      this.nav.targetPos = [x, y];
+      console.log('导航目标设置为：', this.nav.targetPos);
+    },
+
+    // 内部：根据 currentPos + targetPos 初始化路线
+    navInitRoute() {
+      const nav = this.nav;
+
+      if (!this.currentPos || !nav.targetPos) {
+        return false;
+      }
+
+      nav.startPos = [...this.currentPos];
+      nav.fullRoute = [nav.startPos, nav.targetPos];
+      nav.walkedRoute = [nav.startPos];
+      nav.remainRoute = [nav.startPos, nav.targetPos];
+
+      return true;
+    },
+
+    // 外部：开始导航
+    navStart() {
+      const nav = this.nav;
+
+      if (!this.currentPos) {
+        this.$Message && this.$Message.error('当前无定位，无法开始导航');
+        return;
+      }
+      if (!nav.targetPos) {
+        this.$Message && this.$Message.error('未设置导航目标');
+        return;
+      }
+
+      if (!this.navInitRoute()) {
+        this.$Message && this.$Message.error('导航路线上下文缺失');
+        return;
+      }
+
+      nav.enabled = true;
+      this.navDrawRoute();
+
+      this.$Message && this.$Message.success('导航开始');
+    },
+
+    // 外部：取消导航
+    navCancel() {
+      const nav = this.nav;
+      nav.enabled = false;
+      nav.startPos = null;
+      nav.targetPos = null;
+      nav.fullRoute = [];
+      nav.walkedRoute = [];
+      nav.remainRoute = [];
+
+      try {
+        this.guijiClear && this.guijiClear();
+      } catch (e) {}
+
+      this.$Message && this.$Message.warning('导航已取消');
+    },
+
+    // 外部：暂停 / 继续
+    navPause() {
+      this.nav.enabled = false;
+      this.$Message && this.$Message.info('导航已暂停');
+    },
+
+    navResume() {
+      if (this.nav.targetPos && this.currentPos) {
+        this.nav.enabled = true;
+        this.$Message && this.$Message.info('继续导航');
+      }
+    },
+
+    // 内部：绘制路线（已走 + 未走）
+    navDrawRoute() {
+      const nav = this.nav;
+
+      // 已走路线
+      this.guijiLineShow &&
+        this.guijiLineShow({
+          key: 'nav_walked',
+          color: '#999999',
+          size: 4,
+          data: nav.walkedRoute
+        });
+
+      // 未走路线
+      this.guijiLineShow &&
+        this.guijiLineShow({
+          key: 'nav_remain',
+          color: '#0080FF',
+          size: 6,
+          data: nav.remainRoute
+        });
+    },
+
+    // 内部：导航结束
+    navFinish() {
+      this.nav.enabled = false;
+      this.$Message && this.$Message.success('已到达导航终点（≤10cm）');
+      // 这里保留轨迹，不清除
+    },
+
+    // 内部：根据 BLE 实时位置推进导航（真实导航核心）
+    navUpdateByBle(x, y) {
+      this.currentPos = [x, y];
+
+      const nav = this.nav;
+      if (!nav.enabled) {
+        return;
+      }
+
+      // 如果路线还没初始化，这里补一手
+      if (!nav.startPos || !nav.fullRoute.length) {
+        if (!this.navInitRoute()) return;
+      }
+
+      const target = nav.targetPos;
+      if (!target) return;
+
+      const dx = x - target[0];
+      const dy = y - target[1];
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      // 10cm 判定（坐标单位为米）
+      if (dist <= 0.1) {
+        nav.walkedRoute.push([x, y]);
+        nav.remainRoute = [[x, y], target];
+        this.navDrawRoute();
+        this.navFinish();
+        return;
+      }
+
+      // 推进路线：追加当前点为“已走”
+      nav.walkedRoute.push([x, y]);
+      nav.remainRoute = [[x, y], target];
+
+      this.navDrawRoute();
     }
   }
 };

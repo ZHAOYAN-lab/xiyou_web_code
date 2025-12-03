@@ -212,34 +212,44 @@ export default {
 
       // 更新或创建图层
       source.forEach((item) => {
-        const beaconId = item.beaconMac || item.beaconId;
-        const existingLayerIndex = list.layer.findIndex(
-          l => l._beaconId === beaconId
-        );
+  const beaconId = item.beaconMac || item.beaconId;
+  const existingLayerIndex = list.layer.findIndex(
+    l => l._beaconId === beaconId
+  );
 
-        if (existingLayerIndex >= 0) {
-          // 已存在的信标，执行平滑移动
-          const existingLayer = list.layer[existingLayerIndex];
-          const oldPos = this.xinbiao.animation.positions[beaconId] || {
-            lng: item.lng,
-            lat: item.lat
-          };
+  if (existingLayerIndex >= 0) {
+    // 已存在的信标，执行平滑移动
+    const existingLayer = list.layer[existingLayerIndex];
+    const oldPos = this.xinbiao.animation.positions[beaconId] || {
+      lng: item.lng,
+      lat: item.lat
+    };
 
-          this.xinbiaoSmoothUpdate(
-            beaconId,
-            existingLayer,
-            oldPos,
-            { lng: item.lng, lat: item.lat, feature: item }
-          );
-        } else {
-          // 新信标，直接创建
-          this.xinbiaoHandleSetData(item);
-          this.xinbiao.animation.positions[beaconId] = {
-            lng: item.lng,
-            lat: item.lat
-          };
-        }
-      });
+    this.xinbiaoSmoothUpdate(
+      beaconId,
+      existingLayer,
+      oldPos,
+      { lng: item.lng, lat: item.lat, feature: item }
+    );
+  } else {
+    // 新信标，直接创建
+    this.xinbiaoHandleSetData(item);
+    this.xinbiao.animation.positions[beaconId] = {
+      lng: item.lng,
+      lat: item.lat
+    };
+  }
+
+  // =============== 新增：实时导航同步 ===============  
+  try {
+    // 判断是否为你的手机 beacon（你需确认 beaconType）
+    if (item.beaconType === 1) {
+      this.navUpdateByBle(item.lng, item.lat);
+    }
+  } catch (e) {}
+  // ==================================================
+});
+
 
       // 移除不存在的信标
       const currentBeaconIds = source.map(s => s.beaconMac || s.beaconId);

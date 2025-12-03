@@ -1,6 +1,6 @@
 /*
  * @Author: shenlan
- * @Description: 全部路由
+ * @Description: 全部路由（含新增：手机导航页面 /system/mobile_navigation）
  */
 import Layout from '@/components/SlLayoutIview';
 import i18n from '@/language'; // 国际化
@@ -182,7 +182,6 @@ export default [
         },
         component: () => import('@/views/system-set/floor-set')
       },
-
       {
         path: 'service_set',
         name: 'service_set',
@@ -200,8 +199,6 @@ export default [
         },
         component: () => import('@/views/system-set/TaskManage.vue')
       },
-
-      // ⭐⭐⭐ 新增：商品区域设置 ⭐⭐⭐
       {
         path: 'product_area',
         name: 'product_area',
@@ -210,6 +207,17 @@ export default [
           icon: 'md-apps'
         },
         component: () => import('@/views/system-set/product-area/index.vue')
+      },
+
+      /* ⭐⭐ 新增：手机导航页面（系统设置下可见） ⭐⭐ */
+      {
+        path: 'mobile_navigation',
+        name: 'mobile_navigation',
+        meta: {
+          title: '手机导航',
+          icon: 'md-navigate'  // 显示一个导航图标
+        },
+        component: () => import('@/views/system-set/mobile-navigation/index.vue')
       }
     ]
   }

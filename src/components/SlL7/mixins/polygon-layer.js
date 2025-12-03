@@ -2,9 +2,9 @@
  * @Author: shenlan
  * @Company: 蜂鸟创新
  * @Date: 2023-07-07 11:40:36
- * @LastEditors: shenlan（修复商品区域 / 围栏新增、编辑、回显兼容问题）
- * @LastEditTime: 2025-12-01
- * @Description: 围栏 & 商品区域编辑层（稳定版）
+ * @LastEditors: shenlan（修复商品区域 / 围栏新增、编辑、回显兼容问题 + 导航点击支持）
+ * @LastEditTime: 2025-12-02
+ * @Description: 围栏 & 商品区域编辑层（稳定版 + 导航点击事件）
  */
 
 import {
@@ -74,6 +74,31 @@ export default {
       });
     },
 
+    /***************************************
+     * 新增：polygon 点击事件支持导航
+     ***************************************/
+    bindPolygonClick(layer, source) {
+      layer.on('click', (e) => {
+        if (!this.$parent || !this.$parent.onPolygonSelected) return;
+
+        const rawPoints = source.features[0].geometry.coordinates[0];
+
+        const cmPoints = rawPoints.map((p) => {
+          const [x, y] = l7ConvertLtoCM(p, this.l7MapWidth);
+          return l7ConvertWebToData({
+            mapMetersPerPixel: this.mapMetersPerPixel,
+            mapOriginPixelX: this.mapOriginPixelX,
+            mapOriginPixelY: this.mapOriginPixelY,
+            x,
+            y
+          });
+        });
+
+        e.feature.points = cmPoints;
+        this.$parent.onPolygonSelected(e.feature);
+      });
+    },
+
     handlePolygonLayer(source) {
       let polygonLayerData = new PolygonLayer({
         zIndex: 4,
@@ -84,6 +109,9 @@ export default {
         .shape('fill')
         .color('c')
         .style({ opacity: 0.6 });
+
+      // 绑定导航点击事件（新增）
+      this.bindPolygonClick(polygonLayerData, source);
 
       let polygonLayer = this.polygonLayer;
 
@@ -96,11 +124,10 @@ export default {
     },
 
     /***************************************
-     * 二：编辑模式（可新增、编辑 polygon）
+     * 二：编辑模式（新增、编辑）
      ***************************************/
     polygonLayerSetEdit(params = []) {
 
-      // 过滤非法数据，必须是 points 数组且至少 3 个点
       const validFences = (params || []).filter(f =>
         Array.isArray(f.points) && f.points.length >= 3
       );
@@ -129,7 +156,6 @@ export default {
         }
       }));
 
-      // 初始化 DrawPolygon（即使 backData 空，也要初始化，不然后续 getPolygonData 会 undefined）
       const drawer = new DrawPolygon(this.scene, {
         initialData: backData,
         liveUpdate: true,
@@ -160,17 +186,15 @@ export default {
     },
 
     /***************************************
-     * 三：获取绘制后的 polygon（存数据库用）
+     * 三：获取绘制后的 polygon（存数据库）
      ***************************************/
     polygonLayerGetData() {
 
-      // drawer 未初始化 → 安全返回空数组
       if (!this.scene || !this.scene.drawer || typeof this.scene.drawer.getPolygonData !== 'function') {
         return [];
       }
 
       let getPolygonData = this.scene.drawer.getPolygonData();
-
       if (!Array.isArray(getPolygonData) || getPolygonData.length === 0) {
         return [];
       }
@@ -204,7 +228,7 @@ export default {
     },
 
     /***************************************
-     * 四：隐藏/显示 围栏
+     * 四：隐藏/显示
      ***************************************/
     polygonLayerToggle(value) {
       let polygonLayer = this.polygonLayer;
