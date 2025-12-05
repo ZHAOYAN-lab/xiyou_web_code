@@ -36,7 +36,7 @@ import {
 export default {
   name: 'MobileNavigation',
 
-  mixins: [mqttMixin], // ★ MQTT 自动接收实时位置
+  mixins: [mqttMixin],  // ★ MQTT 自动接收实时位置
 
   data() {
     return {
@@ -53,14 +53,14 @@ export default {
 
       paused: false,
 
-      myName: null,        // ★ 当前登录用户名（例如 android）
+      myName: null,        // ★ 当前登录用户名
       myTask: null,        // ★ 当前派发给我的任务
       targetAreaPoints: null
     };
   },
 
   mounted() {
-    this.myName = this.$store.state.user.userName;  
+    this.myName = this.$store.state.user.userName;
     this.autoLoadMyTask();
   },
 
@@ -85,7 +85,7 @@ export default {
       });
     },
 
-    /* =================== 加载地图 =================== */
+    /* =================== 地图选择 =================== */
     mapOnChange(mapId) {
       if (Array.isArray(mapId)) {
         this.mapId = mapId[mapId.length - 1];
@@ -95,6 +95,7 @@ export default {
       this.loadMap();
     },
 
+    /* =================== 加载地图 =================== */
     loadMap() {
       if (!this.mapId) return;
 
@@ -113,7 +114,7 @@ export default {
             sll7.mapInit().then(() => {
               sll7.mapSetBackgroundImage(detail);
 
-              // 绘制 polygon
+              // 绘制区域 polygon
               if (this.targetAreaPoints) {
                 this.drawTargetPolygon();
               }
@@ -172,7 +173,7 @@ export default {
       this.checkArrived();
     },
 
-    /* =================== 到达判定（10cm） =================== */
+    /* =================== 到达判定 =================== */
     checkArrived() {
       const dx = this.currentPos[0] - this.targetPos[0];
       const dy = this.currentPos[1] - this.targetPos[1];

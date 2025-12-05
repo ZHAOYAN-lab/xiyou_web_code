@@ -3,12 +3,17 @@
  * @Description: 全部路由（含新增：手机导航页面 /system/mobile_navigation）
  */
 import Layout from '@/components/SlLayoutIview';
+import MobileLayout from '@/components/MobileLayout.vue';
 import i18n from '@/language'; // 国际化
+
 console.log(i18n.locale);
 console.log(i18n.messages);
 console.log(i18n.messages[i18n.locale]);
 
 export default [
+  /* ======================================
+   * 登录页
+   * ====================================== */
   {
     path: '/login',
     name: 'login',
@@ -19,6 +24,9 @@ export default [
     component: () => import('@/views/login/index')
   },
 
+  /* ======================================
+   * 手机 H5 实时定位老页面（不变）
+   * ====================================== */
   {
     path: '/h5_location',
     name: 'h5_location',
@@ -29,15 +37,15 @@ export default [
     component: () => import('@/views/location-manage/h5-location/index')
   },
 
+  /* ======================================
+   * PC 首页 Layout
+   * ====================================== */
   {
     path: '/',
     name: '_home',
     redirect: '/home',
     component: Layout,
-    meta: {
-      hideInMenu: false,
-      notCache: true
-    },
+    meta: { hideInMenu: false, notCache: true },
     children: [
       {
         path: '/home',
@@ -53,6 +61,9 @@ export default [
     ]
   },
 
+  /* ======================================
+   * 定位管理
+   * ====================================== */
   {
     path: '/location',
     name: 'location',
@@ -65,22 +76,21 @@ export default [
       {
         path: 'realtime_location',
         name: 'realtime_location',
-        meta: {
-          title: i18n.messages[i18n.locale].sideBarMenu.realtimeLocation
-        },
+        meta: { title: i18n.messages[i18n.locale].sideBarMenu.realtimeLocation },
         component: () => import('@/views/location-manage/realtime-location')
       },
       {
         path: 'tracking_manage',
         name: 'tracking_manage',
-        meta: {
-          title: i18n.messages[i18n.locale].sideBarMenu.trackingManage
-        },
+        meta: { title: i18n.messages[i18n.locale].sideBarMenu.trackingManage },
         component: () => import('@/views/location-manage/tracking-manage')
       }
     ]
   },
 
+  /* ======================================
+   * 设备管理
+   * ====================================== */
   {
     path: '/device',
     name: 'device',
@@ -93,30 +103,27 @@ export default [
       {
         path: 'base_station',
         name: 'base_station',
-        meta: {
-          title: i18n.messages[i18n.locale].sideBarMenu.baseStation
-        },
+        meta: { title: i18n.messages[i18n.locale].sideBarMenu.baseStation },
         component: () => import('@/views/device-manage/base-station')
       },
       {
         path: 'beacon_manage',
         name: 'beacon_manage',
-        meta: {
-          title: i18n.messages[i18n.locale].sideBarMenu.beaconManage
-        },
+        meta: { title: i18n.messages[i18n.locale].sideBarMenu.beaconManage },
         component: () => import('@/views/device-manage/beacon-manage')
       },
       {
         path: 'object_manage',
         name: 'object_manage',
-        meta: {
-          title: i18n.messages[i18n.locale].sideBarMenu.objectManage
-        },
+        meta: { title: i18n.messages[i18n.locale].sideBarMenu.objectManage },
         component: () => import('@/views/device-manage/object-manage')
       }
     ]
   },
 
+  /* ======================================
+   * 预警管理
+   * ====================================== */
   {
     path: '/warning',
     name: 'warning',
@@ -148,6 +155,9 @@ export default [
     ]
   },
 
+  /* ======================================
+   * 系统设置（PC）
+   * ====================================== */
   {
     path: '/system',
     name: 'system',
@@ -160,17 +170,13 @@ export default [
       {
         path: 'fence_manage',
         name: 'fence_manage',
-        meta: {
-          title: i18n.messages[i18n.locale].sideBarMenu.fenceManage
-        },
+        meta: { title: i18n.messages[i18n.locale].sideBarMenu.fenceManage },
         component: () => import('@/views/system-set/fence-manage')
       },
       {
         path: 'building_set',
         name: 'building_set',
-        meta: {
-          title: i18n.messages[i18n.locale].sideBarMenu.buildingSet
-        },
+        meta: { title: i18n.messages[i18n.locale].sideBarMenu.buildingSet },
         component: () => import('@/views/system-set/building-set')
       },
       {
@@ -185,38 +191,38 @@ export default [
       {
         path: 'service_set',
         name: 'service_set',
-        meta: {
-          title: i18n.messages[i18n.locale].sideBarMenu.serviceSet
-        },
+        meta: { title: i18n.messages[i18n.locale].sideBarMenu.serviceSet },
         component: () => import('@/views/system-set/service-set')
       },
       {
         path: 'task_manage',
         name: 'TaskManage',
-        meta: {
-          title: '任务管理',
-          icon: 'md-list-box'
-        },
+        meta: { title: '任务管理', icon: 'md-list-box' },
         component: () => import('@/views/system-set/TaskManage.vue')
       },
       {
         path: 'product_area',
         name: 'product_area',
-        meta: {
-          title: '商品区域设置',
-          icon: 'md-apps'
-        },
+        meta: { title: '商品区域设置', icon: 'md-apps' },
         component: () => import('@/views/system-set/product-area/index.vue')
-      },
+      }
+    ]
+  },
 
-      /* ⭐⭐ 新增：手机导航页面（系统设置下可见） ⭐⭐ */
+  /* =============================================================
+   * ★★ 独立手机导航页面（无侧边栏、无顶部，全屏显示）
+   *    /system/mobile_navigation
+   * ============================================================= */
+  {
+    path: '/system/mobile_navigation',
+    component: MobileLayout,
+    meta: {
+      hideInMenu: true
+    },
+    children: [
       {
-        path: 'mobile_navigation',
+        path: '',
         name: 'mobile_navigation',
-        meta: {
-          title: '手机导航',
-          icon: 'md-navigate'  // 显示一个导航图标
-        },
         component: () => import('@/views/system-set/mobile-navigation/index.vue')
       }
     ]
