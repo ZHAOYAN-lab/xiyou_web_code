@@ -20,7 +20,7 @@ Vue.use(Router);
 
 // eslint-disable-next-line no-unused-vars
 const { homeName, loginPage } = config;
-const mobileHome = 'mobile_navigation'; //原h5_location
+const mobileHome = 'h5_location'; //原h5_location
 const { slBrowserDevice } = pub;
 
 const router = new Router({
