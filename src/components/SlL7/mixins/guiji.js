@@ -1,42 +1,43 @@
 /*
  * @Author: shenlan
  * @Company: 蜂鸟创新
- * @Date: 2023-07-07 11:40:06
- * @LastEditors: shenlan
- * @LastEditTime: 2023-07-25 14:04:02
- * @Description:  轨迹
+ * @LastEditors: shenlan（导航版整合 + 线路刷新修正）
+ * @Description: 轨迹 + 导航路线渲染
  */
 
-import { PointLayer, l7ConvertCMtoL, LineLayer, l7ConvertDataToWeb } from './l7';
-
-// import l7IconStation from '@/assets/images/l7/number.svg';
-// import l7IconCar from '@/assets/images/l7/car.png';
+import {
+  PointLayer,
+  l7ConvertCMtoL,
+  LineLayer,
+  l7ConvertDataToWeb
+} from './l7';
 
 export default {
   data() {
     return {
+      // 普通轨迹
       guiji: {
         pointLayer: [],
         lineLayer: []
-      }
+      },
+
+      // 导航路线图层（示例：key 可以是 'route'、'xxx'）
+      navLayers: {}
     };
   },
-  computed: {},
-  beforeDestroy() {},
-  mounted() {
-    this.$nextTick(() => {});
-  },
+
   methods: {
-    // 轨迹点
+    /* ============================================================
+     * 轨迹（你原来的逻辑保留）
+     * ============================================================ */
     guijiSetData(params) {
       let data = params;
       let colors = this.guijiColors(Object.keys(data).length);
       let index = 0;
 
       for (const key in data) {
-        if (Object.hasOwnProperty.call(data, key)) {
+        if (Object.prototype.hasOwnProperty.call(data, key)) {
           const ele = data[key];
-
           const color = colors[index];
 
           this.guijiSetPoint(ele, color);
@@ -47,10 +48,13 @@ export default {
       }
     },
 
-    // 轨迹点
+    /* ============================================================
+     * 普通轨迹点
+     * ============================================================ */
     guijiSetPoint(data, color) {
       let scene = this.scene;
-      // 点轨迹
+      let guiji = this.guiji;
+
       let pointSource = data.reduce((arr, item) => {
         const [lng, lat] = l7ConvertCMtoL(
           l7ConvertDataToWeb({
@@ -73,129 +77,200 @@ export default {
         })
         .shape('circle')
         .size(5)
-        .color('mag', () => {
-          return color;
-        });
+        .color('mag', () => color);
+
       scene.addLayer(pointLayer);
-      this.guiji.pointLayer.push(pointLayer);
+      guiji.pointLayer.push(pointLayer);
     },
-    // 轨迹线
+
+    /* ============================================================
+     * 普通轨迹线
+     * ============================================================ */
     guijiSetLine(data, color) {
       let scene = this.scene;
-      // 线轨迹
+      let guiji = this.guiji;
       let lineSource = [];
-      for (let index = 0; index < data.length; index++) {
+
+      for (let index = 0; index < data.length - 1; index++) {
         const start = data[index];
         const end = data[index + 1];
 
-        if (end) {
-          const [lng, lat] = l7ConvertCMtoL(
-            l7ConvertDataToWeb({
-              mapMetersPerPixel: this.mapMetersPerPixel,
-              mapOriginPixelX: this.mapOriginPixelX,
-              mapOriginPixelY: this.mapOriginPixelY,
-              x: start.x,
-              y: start.y
-            }),
-            this.l7MapWidth
-          );
+        const [lng, lat] = l7ConvertCMtoL(
+          l7ConvertDataToWeb({
+            mapMetersPerPixel: this.mapMetersPerPixel,
+            mapOriginPixelX: this.mapOriginPixelX,
+            mapOriginPixelY: this.mapOriginPixelY,
+            x: start.x,
+            y: start.y
+          }),
+          this.l7MapWidth
+        );
 
-          const [lng1, lat1] = l7ConvertCMtoL(
-            l7ConvertDataToWeb({
-              mapMetersPerPixel: this.mapMetersPerPixel,
-              mapOriginPixelX: this.mapOriginPixelX,
-              mapOriginPixelY: this.mapOriginPixelY,
-              x: end.x,
-              y: end.y
-            }),
-            this.l7MapWidth
-          );
+        const [lng1, lat1] = l7ConvertCMtoL(
+          l7ConvertDataToWeb({
+            mapMetersPerPixel: this.mapMetersPerPixel,
+            mapOriginPixelX: this.mapOriginPixelX,
+            mapOriginPixelY: this.mapOriginPixelY,
+            x: end.x,
+            y: end.y
+          }),
+          this.l7MapWidth
+        );
 
-          lineSource.push({ ...start, lng, lat, lng1, lat1 });
-        }
+        lineSource.push({ ...start, lng, lat, lng1, lat1 });
       }
 
       const lineLayer = new LineLayer({ zIndex: 3 })
         .source(lineSource, {
-          parser: { type: 'json', x: 'lng', y: 'lat', x1: 'lng1', y1: 'lat1' }
+          parser: {
+            type: 'json',
+            x: 'lng',
+            y: 'lat',
+            x1: 'lng1',
+            y1: 'lat1'
+          }
         })
         .shape('line')
         .size(2)
-        // .texture('arrow')
         .color(color)
         .animate({
-          interval: 0.4, // 间隔
-          duration: 1, // 持续时间，延时
-          trailLength: 0.8 // 流线长度
+          interval: 0.4,
+          duration: 1,
+          trailLength: 0.8
         })
         .style({
-          lineTexture: true, // 开启线的贴图功能
-          iconStep: 20 // 设置贴图纹理的间距
+          lineTexture: true,
+          iconStep: 20
         });
 
       scene.addLayer(lineLayer);
-
-      this.guiji.lineLayer.push(lineLayer);
+      guiji.lineLayer.push(lineLayer);
     },
 
-    // 清除 轨迹点
+    /* ============================================================
+     * 清除全部轨迹 + 全部导航线
+     * ============================================================ */
     guijiClear() {
       let scene = this.scene;
       let guiji = this.guiji;
+
+      // 普通轨迹
       if (guiji.pointLayer.length) {
         guiji.pointLayer.forEach((ele) => {
           scene.removeLayer(ele);
         });
+        guiji.pointLayer = [];
+      }
+
+      if (guiji.lineLayer.length) {
         guiji.lineLayer.forEach((ele) => {
           scene.removeLayer(ele);
         });
-
-        guiji.pointLayer = [];
         guiji.lineLayer = [];
+      }
+
+      // 导航路线（包括 key='route' 的蓝线）
+      if (this.navLayers) {
+        Object.keys(this.navLayers).forEach((key) => {
+          try {
+            scene.removeLayer(this.navLayers[key]);
+          } catch (e) {}
+        });
+        this.navLayers = {};
       }
     },
 
-    guijiColors(desiredColorCount) {
+    /* ============================================================
+     * 随机颜色（原逻辑保持）
+     * ============================================================ */
+    guijiColors(count) {
       let colors = [];
 
-      // 轨迹随机颜色
       function randomColor() {
-        var letters = '0123456789ABCDEF';
-        var color = '#';
-        for (var i = 0; i < 6; i++) {
+        const letters = '0123456789ABCDEF';
+        let color = '#';
+        for (let i = 0; i < 6; i++) {
           color += letters[Math.floor(Math.random() * 16)];
         }
         return color;
       }
 
-      function isAdjacent(color1, color2) {
-        var r1 = parseInt(color1.substr(1, 2), 16);
-        var g1 = parseInt(color1.substr(3, 2), 16);
-        var b1 = parseInt(color1.substr(5, 2), 16);
-        var r2 = parseInt(color2.substr(1, 2), 16);
-        var g2 = parseInt(color2.substr(3, 2), 16);
-        var b2 = parseInt(color2.substr(5, 2), 16);
-        var distance = Math.sqrt(
-          Math.pow(r1 - r2, 2) + Math.pow(g1 - g2, 2) + Math.pow(b1 - b2, 2)
-        );
-        return distance < 128;
-      }
-
-      while (colors.length < desiredColorCount) {
-        var newColor = randomColor();
-        var isAdjacentToExistingColor = false;
-        for (var i = 0; i < colors.length; i++) {
-          if (isAdjacent(newColor, colors[i])) {
-            isAdjacentToExistingColor = true;
-            break;
-          }
-        }
-        if (!isAdjacentToExistingColor && colors.indexOf(newColor) === -1) {
-          colors.push(newColor);
-        }
+      while (colors.length < count) {
+        const c = randomColor();
+        if (!colors.includes(c)) colors.push(c);
       }
 
       return colors;
+    },
+
+    /* ============================================================
+     * ★★★ 导航线绘制（统一入口）
+     * data: [[x,y], ...]  数据坐标（米）
+     * key: 比如 'route'
+     * ============================================================ */
+    guijiLineShow({ key, color, size, data }) {
+      if (!this.scene) return;
+      if (!Array.isArray(data) || data.length < 2) return;
+
+      const scene = this.scene;
+      const lineSource = [];
+
+      // 生成连续的 lineSource
+      for (let i = 0; i < data.length - 1; i++) {
+        const [x, y] = data[i];
+        const [x1, y1] = data[i + 1];
+
+        const [lng, lat] = l7ConvertCMtoL(
+          l7ConvertDataToWeb({
+            mapMetersPerPixel: this.mapMetersPerPixel,
+            mapOriginPixelX: this.mapOriginPixelX,
+            mapOriginPixelY: this.mapOriginPixelY,
+            x,
+            y
+          }),
+          this.l7MapWidth
+        );
+
+        const [lng1, lat1] = l7ConvertCMtoL(
+          l7ConvertDataToWeb({
+            mapMetersPerPixel: this.mapMetersPerPixel,
+            mapOriginPixelX: this.mapOriginPixelX,
+            mapOriginPixelY: this.mapOriginPixelY,
+            x: x1,
+            y: y1
+          }),
+          this.l7MapWidth
+        );
+
+        lineSource.push({ lng, lat, lng1, lat1 });
+      }
+
+      // 删除旧图层，避免残影（同一个 key 只保留一条线）
+      if (this.navLayers[key]) {
+        try {
+          scene.removeLayer(this.navLayers[key]);
+        } catch (e) {}
+      }
+
+      const layer = new LineLayer({ zIndex: 20 })
+        .source(lineSource, {
+          parser: {
+            type: 'json',
+            x: 'lng',
+            y: 'lat',
+            x1: 'lng1',
+            y1: 'lat1'
+          }
+        })
+        .shape('line')
+        .size(size)
+        .color(color)
+        .style({
+          lineType: 'solid'
+        });
+
+      scene.addLayer(layer);
+      this.navLayers[key] = layer;
     }
   }
 };

@@ -12,45 +12,78 @@
     </fullscreen>
   </div>
 </template>
+
 <script>
 import fullscreen from './mixins/fullscreen';
 import map from './mixins/map';
+
 export default {
   name: 'SlL7',
   mixins: [map, fullscreen],
+
   props: {
-    id: {
-      type: String,
-      default: 'l7-map-default'
-    },
-    fullscreen: {
-      type: Boolean,
-      default: true
+    id: { type: String, default: 'l7-map-default' },
+    fullscreen: { type: Boolean, default: true },
+    switchJizhan: { type: Boolean, default: true },
+    switchWeilan: { type: Boolean, default: true }
+  },
+
+  mounted() {
+    this.$nextTick(() => {
+      /** ★★★★★ 最关键：把 Vue 实例挂到 DOM 上 ★★★★★ */
+      this.$el.__vue__ = this;
+
+      /** ★★★★★ 地图初始化 ★★★★★ */
+      this.initL7();
+    });
+  },
+
+  methods: {
+    /* ---------------------------------------------------------
+     * 初始化 L7 地图
+     * --------------------------------------------------------- */
+    initL7() {
+      this.mapInit().then(() => {
+        // 通知外部页面已经 ready
+        this.$emit("ready");
+
+        // 初始化图层开关
+        this.jizhanToggle(this.switchJizhan);
+        this.polygonLayerToggle(this.switchWeilan);
+      });
     },
 
-    switchJizhan: {
-      type: Boolean,
-      default: true
+    /* ---------------------------------------------------------
+     * 外部页面调用导航 API（全部走 mixin.map）
+     * --------------------------------------------------------- */
+
+    /** 开始固定路线导航：自动选上下路线 */
+    navStartFixed() {
+      const fn = this.$options.mixins[0].methods.navStartFixed;
+      if (typeof fn === "function") return fn.call(this);
     },
-    switchWeilan: {
-      type: Boolean,
-      default: true
+
+    /** 普通开始导航（如果 map.js 实现了的话） */
+    navStart() {
+      const fn = this.$options.mixins[0].methods.navStart;
+      if (typeof fn === "function") return fn.call(this);
+    },
+
+    /** 取消导航（兼容你旧逻辑） */
+    navCancel() {
+      const fn = this.$options.mixins[0].methods.navCancel;
+      if (typeof fn === "function") return fn.call(this);
+    },
+
+    /** ★★★ 新增：手动“已到达”按钮调用 ★★★ */
+    navArrived() {
+      const fn = this.$options.mixins[0].methods.navArrived;
+      if (typeof fn === "function") return fn.call(this);
     }
-  },
-  data() {
-    return {};
-  },
-  computed: {},
-  watch: {},
-  beforeDestroy() {
-    console.log('sll7组件销毁');
-  },
-  mounted() {
-    this.$nextTick(() => {});
-  },
-  methods: {}
+  }
 };
 </script>
+
 <style lang="less" scoped>
 @import url('./index.less');
 </style>

@@ -1,3 +1,9 @@
+/* * @Author: shenlan
+ * @Company: 蜂鸟创新
+ * @LastEditors: shenlan（修复版：增加地图加载检查 + 调试日志）
+ * @Description: L7 地图核心逻辑（导航 + 商品区域显示）
+ */
+
 import { ImageLayer, Mapbox, Scene, Popup, l7HandleImageMaxRange } from './l7';
 
 import jizhan from './jizhan';
@@ -8,74 +14,79 @@ import mqtt from './mqtt';
 
 export default {
   mixins: [jizhan, xinbiao, guiji, mixinPolygonLayer, mqtt],
+
   data() {
     return {
       scene: null,
-      l7MapWidth: 0, //转换值时的参数
-      l7ImageMap: null, //底图
-      mapCenter: [], //当前图的中心点
+      l7MapWidth: 0,
+      l7ImageMap: null,
+      mapCenter: [],
 
-      // ========= 导航相关 ==============
-      currentPos: null, // 实时位置（BLE）
+      // 坐标换算参数（背景图加载后赋值）
+      mapMetersPerPixel: null,
+      mapOriginPixelX: 0,
+      mapOriginPixelY: 0,
+
+      // 实时定位（坐标：米）
+      currentPos: null,
+
+      // 导航状态
       nav: {
-        enabled: false,     // 是否正在导航
-        startPos: null,     // 起点
-        targetPos: null,    // 终点
-        fullRoute: [],      // 完整路线
-        walkedRoute: [],    // 已走路线
-        remainRoute: []     // 未走路线
+        enabled: false,
+        route: [],
+        routeName: '',
+        startPoint: null,
+        targetPoint: null,
+        guideReached: false
+      },
+
+      /* --------------------- 固定路线定义（米坐标） --------------------- */
+      // 地图实际长度约 4.05米，终点设为 3.8 确保在范围内
+      fixedRoutes: {
+        top: [
+          { x: 1.0, y: 3.2 },
+          { x: 3.8, y: 3.2 }
+        ],
+        bottom: [
+          { x: 1.0, y: 1.5 },
+          { x: 3.8, y: 1.5 }
+        ]
       }
-      // ================================
     };
   },
-  computed: {},
-  beforeDestroy() {
-    try {
-      // this.scene.removeAllLayer();
-    } catch (error) {
-      // console.log(error);
-    }
-  },
-  mounted() {
-    this.$nextTick(() => {});
-  },
+
   methods: {
-    /**************************
+    /********************
      * 地图初始化
-     **************************/
+     ********************/
     mapInit(zoom = 19.85) {
       return new Promise((resolve) => {
         const scene = new Scene({
           id: this.id,
           logoVisible: false,
           map: new Mapbox({
-            style: 'light',
+            style: 'light', // 这里的 style 加载失败可能会导致 401 错误
             center: [0, 0],
             pitch: 0,
-            zoom: zoom
-            // minZoom: 18
+            zoom
           })
         });
 
         this.scene = scene;
 
         scene.on('loaded', () => {
-          this.mapPopup = new Popup({
-            offsets: [0, 0],
-            closeButton: false
-          });
-
+          this.mapPopup = new Popup({ offsets: [0, 0], closeButton: false });
           resolve();
         });
       });
     },
 
-    /**************************
-     * 画底图
-     **************************/
+    /********************
+     * 背景图
+     ********************/
     mapSetBackgroundImage(data) {
-      console.log('地图高度：', data);
       let scene = this.scene;
+
       const {
         mapWidthPixel,
         mapHeightPixel,
@@ -84,464 +95,211 @@ export default {
         mapOriginPixelX,
         mapOriginPixelY
       } = data;
-      const { maxRange, l7MapWidth } = l7HandleImageMaxRange(mapWidthPixel, mapHeightPixel);
 
-      // 缓存 相关数据用于 基站/信标/围栏 数据转换
+      // 打印一下接收到的地图参数，确保数据正常
+      console.log('[Map] Loading Background:', { mapWidthPixel, mapMetersPerPixel });
+
+      const { maxRange, l7MapWidth } = l7HandleImageMaxRange(
+        mapWidthPixel,
+        mapHeightPixel
+      );
+
       this.l7MapWidth = l7MapWidth;
       this.mapMetersPerPixel = mapMetersPerPixel;
       this.mapOriginPixelX = mapOriginPixelX;
       this.mapOriginPixelY = mapOriginPixelY;
 
-      let layer = new ImageLayer({
-        autoFit: true
-      });
-
+      const layer = new ImageLayer({ autoFit: true });
       layer.source(mapImgViewUrl, {
-        parser: {
-          type: 'image',
-          extent: [0, 0, ...maxRange]
-        }
+        parser: { type: 'image', extent: [0, 0, ...maxRange] }
       });
 
-      let center = [maxRange[0] / 2, maxRange[1] / 2];
+      const center = [maxRange[0] / 2, maxRange[1] / 2];
+      this.mapCenter = center;
 
       scene.setCenter(center);
-
-      // 缓存中心点
-      this.mapCenter = center;
       this.l7ImageMap = layer;
-
       scene.addLayer(layer);
+
+      // 避免切图后定位消失
+      if (this.xinbiao?.data?.length) {
+        try {
+          this.xinbiaoSetData({ data: this.xinbiao.data });
+        } catch (e) {}
+      }
     },
 
-    /**************************
-     * 清除所有数据
-     **************************/
+    /********************
+     * 清除所有图层
+     ********************/
     mapClear() {
+      let scene = this.scene;
+      if (!scene) return;
+
       try {
-        let scene = this.scene;
-        if (scene.drawer) {
-          scene.drawer.clear();
-        }
-        // this.scene.removeAllLayer();
+        if (scene.drawer) scene.drawer.clear();
+        if (this.l7ImageMap) scene.removeLayer(this.l7ImageMap);
 
-        if (this.l7ImageMap) {
-          scene.removeLayer(this.l7ImageMap);
-        }
-
-        if (this.jizhan.hasLayer) {
-          scene.removeLayer(this.jizhan.layer);
-        }
+        if (this.jizhan?.hasLayer) scene.removeLayer(this.jizhan.layer);
 
         if (this.polygonLayer.hasLayer) {
-          this.polygonLayer.layer.forEach((item) => {
-            scene.removeLayer(item);
-          });
-
+          this.polygonLayer.layer.forEach((item) => scene.removeLayer(item));
           this.polygonLayer.layer = [];
         }
 
         if (this.xinbiao.list.layer) {
           this.xinbiao.list.layer.forEach((item) => {
-            scene.removeLayer(item);
+            try {
+              scene.removeLayer(item);
+            } catch (e) {}
           });
         }
 
-        // 清空导航轨迹
-        try {
-          this.guijiClear && this.guijiClear();
-        } catch (e) {}
-      } catch (error) {
-        // console.log(error);
-      }
+        this.guijiClear && this.guijiClear();
+
+        this.nav.enabled = false;
+        this.nav.route = [];
+        this.nav.routeName = '';
+        this.nav.startPoint = null;
+        this.nav.targetPoint = null;
+        this.nav.guideReached = false;
+      } catch (error) {}
     },
 
-    mapGetScene() {
-      return this.scene;
-    },
-
-    /**************************
-     * 假数据（原样保留）
-     **************************/
-    l7DemoData() {
-      return {
-        // 信标
-        station: [
-          {
-            gateway: '10030240',
-            mapId: '1645334018633216001',
-            groupId: '3',
-            name: '中心',
-            productName: 'gateway',
-            systemId: '10990145',
-            type: 'Gateway',
-            status: 'Online',
-            ip: '61.194.146.44',
-            fenceIds: null,
-            setX: 3.5,
-            setY: 1.9,
-            setZ: 2.5,
-            angle: 90.0,
-            hisX: 0.306456,
-            hisY: -0.306456,
-            hisZ: -9.65336,
-            updateTime: 1687752916,
-            extraInfo: null
-          },
-          {
-            gateway: '10030241',
-            mapId: '1645334018633216001',
-            groupId: '3',
-            name: '原点',
-            productName: 'gateway',
-            systemId: '10990145',
-            type: 'Gateway',
-            status: 'Offline',
-            ip: '61.194.146.44',
-            fenceIds: null,
-            setX: 0.5,
-            setY: 2.1,
-            setZ: 2.5,
-            angle: 90.0,
-            hisX: 0.0,
-            hisY: -0.153228,
-            hisZ: -10.4195,
-            updateTime: 1687752920,
-            extraInfo: null
-          },
-          {
-            gateway: '10030240',
-            mapId: '1645334018633216001',
-            groupId: '3',
-            name: '中心',
-            productName: 'gateway',
-            systemId: '10990145',
-            type: 'GatewayCar',
-            status: 'Online',
-            ip: '61.194.146.44',
-            fenceIds: null,
-            setX: 3.9,
-            setY: 2.0,
-            setZ: 2.5,
-            angle: 90.0,
-            hisX: 0.306456,
-            hisY: -0.306456,
-            hisZ: -9.65336,
-            updateTime: 1687752916,
-            extraInfo: null
-          },
-          {
-            gateway: '10030241',
-            mapId: '1645334018633216001',
-            groupId: '3',
-            name: '原点',
-            productName: 'gateway',
-            systemId: '10990145',
-            type: 'GatewayCar',
-            status: 'Offline',
-            ip: '61.194.146.44',
-            fenceIds: null,
-            setX: 1,
-            setY: 4.1,
-            setZ: 2.5,
-            angle: 90.0,
-            hisX: 0.0,
-            hisY: -0.153228,
-            hisZ: -10.4195,
-            updateTime: 1687752920,
-            extraInfo: null
-          }
-        ],
-        stationList: [
-          {
-            gateway: '10030240',
-            mapId: '1645334018633216001',
-            groupId: '3',
-            name: '中心',
-            productName: 'gateway',
-            systemId: '10990145',
-            type: 'Gateway',
-            status: 'Online',
-            ip: '61.194.146.44',
-            fenceIds: null,
-            posX: 3.5,
-            posY: 1.9,
-            setZ: 2.5,
-            angle: 90.0,
-            hisX: 0.306456,
-            hisY: -0.306456,
-            hisZ: -9.65336,
-            updateTime: 1687752916,
-            extraInfo: null
-          },
-          {
-            gateway: '10030240',
-            mapId: '1645334018633216001',
-            groupId: '3',
-            name: '中心',
-            productName: 'gateway',
-            systemId: '10990145',
-            type: 'Gateway',
-            status: 'Online',
-            ip: '61.194.146.44',
-            fenceIds: null,
-            posX: 3.62,
-            posY: 1.9,
-            setZ: 2.5,
-            angle: 90.0,
-            hisX: 0.306456,
-            hisY: -0.306456,
-            hisZ: -9.65336,
-            updateTime: 1687752916,
-            extraInfo: null
-          },
-          {
-            gateway: '10030240',
-            mapId: '1645334018633216001',
-            groupId: '3',
-            name: '中心',
-            productName: 'gateway',
-            systemId: '10990145',
-            type: 'Gateway',
-            status: 'Online',
-            ip: '61.194.146.44',
-            fenceIds: null,
-            posX: 3.73,
-            posY: 2.0,
-            setZ: 2.5,
-            angle: 90.0,
-            hisX: 0.306456,
-            hisY: -0.306456,
-            hisZ: -9.65336,
-            updateTime: 1687752916,
-            extraInfo: null
-          }
-        ],
-
-        fence: [
-          {
-            fenceId: '1656844789678571521',
-            name: '充电站',
-            mapId: '1645334018633216001',
-            mapName: '3F-RoomC',
-            type: 'Out',
-            points: [
-              {
-                x: 2.509223090277778,
-                y: 8.81618923611111
-              },
-              {
-                x: 11.867947048611112,
-                y: 8.81618923611111
-              },
-              {
-                x: 9.494357638888888,
-                y: 1.8310546875
-              },
-              {
-                x: 2.848307291666667,
-                y: 1.8988715277777763
-              },
-              {
-                x: 2.509223090277778,
-                y: 8.81618923611111
-              }
-            ],
-            enabled: true
-          },
-          {
-            fenceId: '1673196278525186049',
-            name: '禁止进入',
-            mapId: '1645334018633216001',
-            mapName: '3F-RoomC',
-            type: 'In',
-            points: [
-              {
-                x: 18.64963107638889,
-                y: 10.03689236111111
-              },
-              {
-                x: 26.92328559027778,
-                y: 10.172526041666666
-              },
-              {
-                x: 26.92328559027778,
-                y: 3.3908420138888893
-              },
-              {
-                x: 18.717447916666668,
-                y: 3.4586588541666656
-              },
-              {
-                x: 18.64963107638889,
-                y: 10.03689236111111
-              }
-            ],
-            enabled: true
-          }
-        ]
-      };
-    },
-
-    /**************************
-     * 设置中心点
-     **************************/
     mapSetCenter() {
-      console.log('重置地图中心点');
-
+      if (!this.scene || !this.mapCenter.length) return;
       this.scene.setCenter(this.mapCenter);
     },
 
     mapResize() {
       this.mapSetCenter();
-      // this.mapSetZoom();
     },
 
-    /**************************
-     * ========= 导航部分 =========
-     **************************/
-
-    // 外部：设置导航终点（例如点击地图 / 商品区域中心）
-    navSetTarget(x, y) {
-      this.nav.targetPos = [x, y];
-      console.log('导航目标设置为：', this.nav.targetPos);
-    },
-
-    // 内部：根据 currentPos + targetPos 初始化路线
-    navInitRoute() {
-      const nav = this.nav;
-
-      if (!this.currentPos || !nav.targetPos) {
-        return false;
+    /********************
+     * 坐标转换：米 → Web（L7 图片坐标系）
+     ********************/
+    metersToWeb(x, y) {
+      // ★★★ 关键检查：如果比例尺未加载，返回原值并在控制台警告 ★★★
+      if (!this.mapMetersPerPixel || this.mapMetersPerPixel === 0) {
+        console.warn('[Map] mapMetersPerPixel 未设置，坐标转换可能错误！');
+        return [x, y];
       }
 
-      nav.startPos = [...this.currentPos];
-      nav.fullRoute = [nav.startPos, nav.targetPos];
-      nav.walkedRoute = [nav.startPos];
-      nav.remainRoute = [nav.startPos, nav.targetPos];
+      const px = x / this.mapMetersPerPixel;
+      const py = y / this.mapMetersPerPixel;
 
-      return true;
+      return [px + (this.mapOriginPixelX || 0), py + (this.mapOriginPixelY || 0)];
     },
 
-    // 外部：开始导航
-    navStart() {
-      const nav = this.nav;
+    distance2D(p, q) {
+      return Math.hypot(p[0] - q[0], p[1] - q[1]);
+    },
 
-      if (!this.currentPos) {
-        this.$Message && this.$Message.error('当前无定位，无法开始导航');
+    projectPointToSegment(px, py, ax, ay, bx, by) {
+      const abx = bx - ax;
+      const aby = by - ay;
+      const apx = px - ax;
+      const apy = py - ay;
+      const abLen2 = abx * abx + aby * aby;
+      if (abLen2 === 0) return { x: ax, y: ay, dist: Math.hypot(px - ax, py - ay), t: 0 };
+      
+      let t = (apx * abx + apy * aby) / abLen2;
+      t = Math.max(0, Math.min(1, t));
+      
+      const x = ax + t * abx;
+      const y = ay + t * aby;
+      return { x, y, dist: Math.hypot(px - x, py - y), t };
+    },
+
+    distanceToRoute(px, py, route) {
+      if (!route || route.length < 2) return Infinity;
+      let min = Infinity;
+      for (let i = 0; i < route.length - 1; i++) {
+        const a = route[i];
+        const b = route[i + 1];
+        const proj = this.projectPointToSegment(px, py, a.x, a.y, b.x, b.y);
+        if (proj.dist < min) min = proj.dist;
+      }
+      return min;
+    },
+
+    chooseBestRoute() {
+      const { top, bottom } = this.fixedRoutes;
+      if (!this.currentPos) return { name: 'top', route: top };
+      const [px, py] = this.currentPos;
+      const dTop = this.distanceToRoute(px, py, top);
+      const dBottom = this.distanceToRoute(px, py, bottom);
+      return dTop <= dBottom ? { name: 'top', route: top } : { name: 'bottom', route: bottom };
+    },
+
+    /********************
+     * 开始导航（固定路线）
+     ********************/
+    navStartFixed() {
+      console.log('[navStartFixed] 点击开始导航');
+
+      // 1. 检查地图参数是否就绪
+      if (!this.mapMetersPerPixel) {
+        this.$Message && this.$Message.error('地图数据加载失败，无法计算路线');
+        console.error('[Nav] mapMetersPerPixel 为空，请检查网络或地图接口');
         return;
       }
-      if (!nav.targetPos) {
-        this.$Message && this.$Message.error('未设置导航目标');
+
+      const { name, route } = this.chooseBestRoute();
+      if (!route || !route.length) {
+        this.$Message && this.$Message.error('固定路线未配置');
         return;
       }
 
-      if (!this.navInitRoute()) {
-        this.$Message && this.$Message.error('导航路线上下文缺失');
-        return;
-      }
+      // 2. 转换坐标并打印调试
+      const routeXY = route.map((p) => this.metersToWeb(p.x, p.y));
+      console.log('[Nav] 路线坐标(Pixel):', routeXY);
 
-      nav.enabled = true;
-      this.navDrawRoute();
+      // 3. 赋值导航状态
+      this.nav.enabled = true;
+      this.nav.route = routeXY.slice();
+      this.nav.routeName = name;
+      this.nav.startPoint = routeXY[0];
+      this.nav.targetPoint = routeXY[routeXY.length - 1];
+      this.nav.guideReached = false;
 
-      this.$Message && this.$Message.success('导航开始');
-    },
+      // 4. 清理并绘制
+      this.guijiClear && this.guijiClear();
 
-    // 外部：取消导航
-    navCancel() {
-      const nav = this.nav;
-      nav.enabled = false;
-      nav.startPos = null;
-      nav.targetPos = null;
-      nav.fullRoute = [];
-      nav.walkedRoute = [];
-      nav.remainRoute = [];
-
-      try {
-        this.guijiClear && this.guijiClear();
-      } catch (e) {}
-
-      this.$Message && this.$Message.warning('导航已取消');
-    },
-
-    // 外部：暂停 / 继续
-    navPause() {
-      this.nav.enabled = false;
-      this.$Message && this.$Message.info('导航已暂停');
-    },
-
-    navResume() {
-      if (this.nav.targetPos && this.currentPos) {
-        this.nav.enabled = true;
-        this.$Message && this.$Message.info('继续导航');
-      }
-    },
-
-    // 内部：绘制路线（已走 + 未走）
-    navDrawRoute() {
-      const nav = this.nav;
-
-      // 已走路线
-      this.guijiLineShow &&
+      if (this.guijiLineShow) {
         this.guijiLineShow({
-          key: 'nav_walked',
-          color: '#999999',
-          size: 4,
-          data: nav.walkedRoute
+          key: 'route',
+          data: routeXY, // 格式：[[x,y], [x,y]]
+          color: '#1E90FF',
+          size: 4 // 加粗一点，防止太细看不清
         });
+      } else {
+        console.error('[Nav] guijiLineShow 方法不存在');
+      }
 
-      // 未走路线
-      this.guijiLineShow &&
-        this.guijiLineShow({
-          key: 'nav_remain',
-          color: '#0080FF',
-          size: 6,
-          data: nav.remainRoute
-        });
+      this.$Message &&
+        this.$Message.success(
+          name === 'top' ? '已开始导航（上路）' : '已开始导航（下路）'
+        );
     },
 
-    // 内部：导航结束
-    navFinish() {
-      this.nav.enabled = false;
-      this.$Message && this.$Message.success('已到达导航终点（≤10cm）');
-      // 这里保留轨迹，不清除
-    },
-
-    // 内部：根据 BLE 实时位置推进导航（真实导航核心）
     navUpdateByBle(x, y) {
       this.currentPos = [x, y];
+    },
 
-      const nav = this.nav;
-      if (!nav.enabled) {
-        return;
-      }
+    navArrived() {
+      this.guijiClear && this.guijiClear();
+      this.nav.enabled = false;
+      this.nav.route = [];
+      this.nav.routeName = '';
+      this.nav.startPoint = null;
+      this.nav.targetPoint = null;
+      this.nav.guideReached = false;
+      this.$Message && this.$Message.success('已到达');
+    },
 
-      // 如果路线还没初始化，这里补一手
-      if (!nav.startPos || !nav.fullRoute.length) {
-        if (!this.navInitRoute()) return;
-      }
-
-      const target = nav.targetPos;
-      if (!target) return;
-
-      const dx = x - target[0];
-      const dy = y - target[1];
-      const dist = Math.sqrt(dx * dx + dy * dy);
-
-      // 10cm 判定（坐标单位为米）
-      if (dist <= 0.1) {
-        nav.walkedRoute.push([x, y]);
-        nav.remainRoute = [[x, y], target];
-        this.navDrawRoute();
-        this.navFinish();
-        return;
-      }
-
-      // 推进路线：追加当前点为“已走”
-      nav.walkedRoute.push([x, y]);
-      nav.remainRoute = [[x, y], target];
-
-      this.navDrawRoute();
+    navFinish() {
+      this.navArrived();
     }
   }
 };
