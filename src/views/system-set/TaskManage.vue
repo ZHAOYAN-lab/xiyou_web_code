@@ -7,12 +7,13 @@
         <Button type="primary" icon="md-add" @click="handleOpenAdd">新增任务</Button>
       </div>
 
-      <Table 
+      <Table
         border
         :columns="columns"
         :data="tableData"
-        :loading="tableLoading">
-
+        :loading="tableLoading"
+        :row-class-name="rowClassName"
+      >
         <template slot="objectName" slot-scope="{ row }">
           <strong>{{ row.objectName }}</strong>
         </template>
@@ -21,6 +22,10 @@
           <Tag :color="row.taskType === '取货' ? 'orange' : 'blue'">
             {{ row.taskType || '-' }}
           </Tag>
+        </template>
+
+        <template slot="taskDesc" slot-scope="{ row }">
+          {{ row.taskDesc || '-' }}
         </template>
 
         <template slot="areaName" slot-scope="{ row }">
@@ -34,64 +39,120 @@
         </template>
 
         <template slot="action" slot-scope="{ row }">
-          <Button type="primary" size="small" @click="handleOpenDispatch(row)">派发</Button>
-          <Button type="warning" size="small" v-if="row.status==='已派发'" @click="handleCancelDispatch(row)">取消</Button>
-          <Button type="error" size="small" @click="handleDelete(row)">删除</Button>
+          <!-- 派发 -->
+          <Tooltip
+            v-if="isLocked(row)"
+            content="已派发，需先取消"
+            placement="top"
+          >
+            <Button type="primary" size="small" disabled>派发</Button>
+          </Tooltip>
+
+          <Button
+            v-else
+            type="primary"
+            size="small"
+            @click="handleOpenDispatch(row)"
+          >
+            派发
+          </Button>
+
+          <!-- 取消派发 -->
+          <Button
+            type="warning"
+            size="small"
+            v-if="row.status === '已派发'"
+            @click="handleCancelDispatch(row)"
+          >
+            取消
+          </Button>
+
+          <!-- 删除：执行中禁止 -->
+          <Tooltip
+            v-if="row.status === '执行中'"
+            content="任务执行中，禁止删除"
+            placement="top"
+          >
+            <Button type="error" size="small" disabled>删除</Button>
+          </Tooltip>
+
+          <Button
+            v-else
+            type="error"
+            size="small"
+            @click="handleDelete(row)"
+          >
+            删除
+          </Button>
         </template>
       </Table>
 
       <div style="margin-top: 10px; text-align:right;">
-        <Page 
+        <Page
           :total="total"
           :current="page"
           :page-size="pageSize"
-          @on-change="handlePageChange"/>
+          @on-change="handlePageChange"
+        />
       </div>
     </Card>
 
     <!-- 新增任务 -->
     <Modal v-model="addDialogVisible" title="新增任务">
       <Form ref="addFormRef" :model="addForm" :rules="addRules" :label-width="120">
-
         <FormItem label="对象名称" prop="objectName">
-          <Input v-model="addForm.objectName" placeholder="请输入对象名称"/>
+          <Input v-model="addForm.objectName" />
         </FormItem>
 
         <FormItem label="所属类型" prop="taskType">
-          <Select v-model="addForm.taskType" placeholder="请选择类型">
+          <Select v-model="addForm.taskType">
             <Option value="取货">取货</Option>
             <Option value="送货">送货</Option>
           </Select>
         </FormItem>
 
+        <FormItem label="任务内容" prop="taskDesc">
+          <Input
+            v-model="addForm.taskDesc"
+            type="textarea"
+            :rows="3"
+          />
+        </FormItem>
+
         <FormItem label="商品区域" prop="areaId">
-          <Select v-model="addForm.areaId" placeholder="请选择区域">
-            <Option v-for="item in areaList" :key="item.areaId" :value="item.areaId">
+          <Select v-model="addForm.areaId">
+            <Option
+              v-for="item in areaList"
+              :key="item.areaId"
+              :value="item.areaId"
+            >
               {{ item.objectName }}
             </Option>
           </Select>
         </FormItem>
-
       </Form>
 
       <div slot="footer">
         <Button @click="addDialogVisible=false">取消</Button>
-        <Button type="primary" :loading="btnLoading" @click="submitAdd">确定</Button>
+        <Button type="primary" @click="submitAdd">确定</Button>
       </div>
     </Modal>
 
     <!-- 派发任务 -->
     <Modal v-model="dispatchDialogVisible" title="派发任务">
       <Form :model="dispatchForm" :label-width="100">
-
         <FormItem label="所属区域">
-          <Input :value="currentDispatchRow?.areaName" disabled/>
+          <Input :value="currentDispatchRow?.areaName" disabled />
         </FormItem>
 
-        <FormItem label="选择员工" required>
+        <FormItem label="任务内容">
+          <Input :value="currentDispatchRow?.taskDesc" type="textarea" disabled />
+        </FormItem>
+
+        <FormItem label="选择员工">
           <Select v-model="dispatchForm.employees" multiple>
-            <Option 
-              v-for="item in employeeList" 
+            <Option
+              v-for="item in employeeList"
               :key="item.locationObjectId"
               :value="item.locationObjectName"
             >
@@ -99,7 +160,6 @@
             </Option>
           </Select>
         </FormItem>
-
       </Form>
 
       <div slot="footer">
@@ -113,10 +173,10 @@
 <script>
 import taskApi from '@/api/path/task'
 import productAreaApi from '@/api/path/product-area'
-import objectManageApi from '@/api/path/object-manage'   // ★ 新增：读取定位对象列表
+import objectManageApi from '@/api/path/object-manage'
 
 export default {
-  name: "TaskManage",
+  name: 'TaskManage',
 
   data() {
     return {
@@ -130,20 +190,21 @@ export default {
       dispatchDialogVisible: false,
 
       areaList: [],
-
-      employeeList: [],   // ★ 新增：location_object 员工列表
+      employeeList: [],
 
       addForm: {
-        objectName: "",
-        taskType: "",
+        objectName: '',
+        taskType: '',
+        taskDesc: '',
         areaId: null,
-        areaName: ""
+        areaName: ''
       },
 
       addRules: {
-        objectName: [{ required: true, message: "请输入对象名称" }],
-        taskType: [{ required: true, message: "请选择类型" }],
-        areaId: [{ required: true, message: "请选择商品区域" }]
+        objectName: [{ required: true, message: '请输入对象名称' }],
+        taskType: [{ required: true, message: '请选择类型' }],
+        taskDesc: [{ required: true, message: '请输入任务内容' }],
+        areaId: [{ required: true, message: '请选择商品区域' }]
       },
 
       currentDispatchRow: null,
@@ -152,139 +213,124 @@ export default {
       },
 
       columns: [
-        { type: "index", width: 70, align: "center" },
-        { title: "对象名称", slot: "objectName", align: "center" },
-        { title: "所属类型", slot: "taskType", align: "center" },
-        { title: "商品区域", slot: "areaName", align: "center" },
-        { title: "状态", slot: "status", align: "center" },
-        { title: "操作", slot: "action", align: "center" }
+        { type: 'index', width: 70, align: 'center' },
+        { title: '对象名称', slot: 'objectName', align: 'center' },
+        { title: '所属类型', slot: 'taskType', align: 'center' },
+        { title: '任务内容', slot: 'taskDesc', align: 'center' },
+        { title: '商品区域', slot: 'areaName', align: 'center' },
+        { title: '状态', slot: 'status', align: 'center' },
+        { title: '操作', slot: 'action', align: 'center' }
       ]
     }
   },
 
   created() {
-    this.fetchAreaList();
-    this.fetchEmployeeList();   // ★ 加载员工
-    this.fetchData();
-  },
-
-  activated() {
-    this.fetchAreaList();
-    this.fetchEmployeeList();
-    this.fetchData();
+    this.fetchAreaList()
+    this.fetchEmployeeList()
+    this.fetchData()
   },
 
   methods: {
+    /** 是否锁定（已派发 / 执行中） */
+    isLocked(row) {
+      return row.status === '已派发' || row.status === '执行中'
+    },
 
-    /* 状态颜色 */
+    /** 行灰化（取消派发后 status 变回，自动恢复高亮） */
+    rowClassName(row) {
+      return this.isLocked(row) ? 'row-disabled' : ''
+    },
+
     getStatusColor(status) {
-      if (status === "已派发") return "orange";
-      if (status === "执行中") return "green";
-      return "default";
+      if (status === '已派发') return 'orange'
+      if (status === '执行中') return 'green'
+      return 'default'
     },
 
-    /* 获取区域列表 */
     fetchAreaList() {
-      productAreaApi.getProductAreaList()
-        .then(res => {
-          if (Array.isArray(res)) this.areaList = res;
-          else if (Array.isArray(res.list)) this.areaList = res.list;
-          else this.areaList = [];
-        });
+      productAreaApi.getProductAreaList().then(res => {
+        this.areaList = res?.list || res || []
+      })
     },
 
-    /* ★ 获取员工列表（来自 xy_location_object） */
     fetchEmployeeList() {
-      objectManageApi.objectManageGetAllAvailable({})
-        .then(res => {
-          if (Array.isArray(res)) this.employeeList = res;
-          else if (res?.detail && Array.isArray(res.detail)) this.employeeList = res.detail;
-          else this.employeeList = [];
-        })
-        .catch(() => {
-          this.employeeList = [];
-        });
+      objectManageApi.objectManageGetAllAvailable({}).then(res => {
+        this.employeeList = res?.detail || res || []
+      })
     },
 
-    /* 加载任务列表 */
     fetchData() {
-      this.tableLoading = true;
+      this.tableLoading = true
       taskApi.taskGetList({ page: this.page, size: this.pageSize })
         .then(res => {
-          this.tableData = res.list || [];
-          this.total = res.total || 0;
+          this.tableData = res.list || []
+          this.total = res.total || 0
         })
-        .finally(() => this.tableLoading = false);
+        .finally(() => {
+          this.tableLoading = false
+        })
     },
 
     handlePageChange(p) {
-      this.page = p;
-      this.fetchData();
+      this.page = p
+      this.fetchData()
     },
 
-    /* 新增任务 */
     handleOpenAdd() {
-      this.addForm = { objectName: "", taskType: "", areaId: null };
-      this.addDialogVisible = true;
+      this.addForm = { objectName: '', taskType: '', taskDesc: '', areaId: null }
+      this.addDialogVisible = true
     },
 
     submitAdd() {
       this.$refs.addFormRef.validate(valid => {
-        if (!valid) return;
-        this.btnLoading = true;
+        if (!valid) return
 
-        const area = this.areaList.find(a => a.areaId === this.addForm.areaId);
-        this.addForm.areaName = area ? area.objectName : "";
+        const area = this.areaList.find(a => a.areaId === this.addForm.areaId)
+        this.addForm.areaName = area ? area.objectName : ''
 
-        taskApi.taskAdd(this.addForm)
-          .then(() => {
-            this.$Message.success("新增成功");
-            this.addDialogVisible = false;
-            this.fetchData();
-          })
-          .finally(() => this.btnLoading = false);
-      });
+        taskApi.taskAdd(this.addForm).then(() => {
+          this.$Message.success('新增成功')
+          this.addDialogVisible = false
+          this.fetchData()
+        })
+      })
     },
 
-    /* 打开派发弹窗 */
     handleOpenDispatch(row) {
-      this.currentDispatchRow = row;
-      this.dispatchForm.employees = [];
-      this.dispatchDialogVisible = true;
+      this.currentDispatchRow = row
+      this.dispatchForm.employees = []
+      this.dispatchDialogVisible = true
     },
 
-    /* 派发任务 */
     submitDispatch() {
       taskApi.taskDispatch({
         taskId: this.currentDispatchRow.id,
         employees: this.dispatchForm.employees
       }).then(() => {
-        this.$Message.success("派发成功");
-        this.dispatchDialogVisible = false;
-        this.fetchData();
-      });
+        this.$Message.success('派发成功')
+        this.dispatchDialogVisible = false
+        this.fetchData()
+      })
     },
 
-    /* 取消任务 */
     handleCancelDispatch(row) {
       taskApi.taskCancel({ taskId: row.id }).then(() => {
-        this.$Message.success("已取消任务");
-        this.fetchData();
-      });
+        this.$Message.success('已取消任务')
+        this.fetchData()   // ← 立刻刷新，整行恢复高亮
+      })
     },
 
-    /* 删除 */
     handleDelete(row) {
       this.$Modal.confirm({
-        title: "确认删除？",
-        content: "是否删除该任务？",
+        title: '确认删除？',
+        content: '是否删除该任务？',
         onOk: () => {
           taskApi.taskDelete({ id: row.id }).then(() => {
-            this.$Message.success("删除成功");
-            this.fetchData();
-          });
+            this.$Message.success('删除成功')
+            this.fetchData()
+          })
         }
-      });
+      })
     }
   }
 }
@@ -299,5 +345,11 @@ export default {
 .title {
   font-size: 14px;
   font-weight: bold;
+}
+
+/* 已派发 / 执行中 整行灰 */
+.row-disabled td {
+  background-color: #f5f7fa !important;
+  color: #999;
 }
 </style>
