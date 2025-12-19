@@ -67,7 +67,7 @@
             取消
           </Button>
 
-          <!-- 删除：执行中禁止 -->
+          <!-- 删除 -->
           <Tooltip
             v-if="row.status === '执行中'"
             content="任务执行中，禁止删除"
@@ -112,11 +112,7 @@
         </FormItem>
 
         <FormItem label="任务内容" prop="taskDesc">
-          <Input
-            v-model="addForm.taskDesc"
-            type="textarea"
-            :rows="3"
-          />
+          <Input v-model="addForm.taskDesc" type="textarea" :rows="3" />
         </FormItem>
 
         <FormItem label="商品区域" prop="areaId">
@@ -152,11 +148,11 @@
         <FormItem label="选择员工">
           <Select v-model="dispatchForm.employees" multiple>
             <Option
-              v-for="item in employeeList"
-              :key="item.locationObjectId"
-              :value="item.locationObjectName"
+              v-for="name in employeeList"
+              :key="name"
+              :value="name"
             >
-              {{ item.locationObjectName }}
+              {{ name }}
             </Option>
           </Select>
         </FormItem>
@@ -173,7 +169,7 @@
 <script>
 import taskApi from '@/api/path/task'
 import productAreaApi from '@/api/path/product-area'
-import objectManageApi from '@/api/path/object-manage'
+import userApi from '@/api/path/user'
 
 export default {
   name: 'TaskManage',
@@ -231,12 +227,10 @@ export default {
   },
 
   methods: {
-    /** 是否锁定（已派发 / 执行中） */
     isLocked(row) {
       return row.status === '已派发' || row.status === '执行中'
     },
 
-    /** 行灰化（取消派发后 status 变回，自动恢复高亮） */
     rowClassName(row) {
       return this.isLocked(row) ? 'row-disabled' : ''
     },
@@ -254,7 +248,7 @@ export default {
     },
 
     fetchEmployeeList() {
-      objectManageApi.objectManageGetAllAvailable({}).then(res => {
+      userApi.getUserSimpleList().then(res => {
         this.employeeList = res?.detail || res || []
       })
     },
@@ -303,6 +297,11 @@ export default {
     },
 
     submitDispatch() {
+      if (!this.dispatchForm.employees.length) {
+        this.$Message.error('请至少选择一名员工')
+        return
+      }
+
       taskApi.taskDispatch({
         taskId: this.currentDispatchRow.id,
         employees: this.dispatchForm.employees
@@ -316,7 +315,7 @@ export default {
     handleCancelDispatch(row) {
       taskApi.taskCancel({ taskId: row.id }).then(() => {
         this.$Message.success('已取消任务')
-        this.fetchData()   // ← 立刻刷新，整行恢复高亮
+        this.fetchData()
       })
     },
 
@@ -347,7 +346,6 @@ export default {
   font-weight: bold;
 }
 
-/* 已派发 / 执行中 整行灰 */
 .row-disabled td {
   background-color: #f5f7fa !important;
   color: #999;

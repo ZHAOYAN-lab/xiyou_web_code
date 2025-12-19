@@ -1,14 +1,10 @@
 /*
  * @Author: shenlan
- * @Description: 全部路由（含新增：手机导航页面 /system/mobile_navigation）
+ * @Description: 全部路由（修复根路径 redirect 与权限守卫冲突）
  */
 import Layout from '@/components/SlLayoutIview';
 import MobileLayout from '@/components/MobileLayout.vue';
 import i18n from '@/language'; // 国际化
-
-console.log(i18n.locale);
-console.log(i18n.messages);
-console.log(i18n.messages[i18n.locale]);
 
 export default [
   /* ======================================
@@ -25,7 +21,7 @@ export default [
   },
 
   /* ======================================
-   * 手机 H5 实时定位老页面（不变）
+   * 手机 H5 实时定位页面
    * ====================================== */
   {
     path: '/h5_location',
@@ -38,17 +34,16 @@ export default [
   },
 
   /* ======================================
-   * PC 首页 Layout
+   * PC 首页 Layout（⚠️ 注意：不再使用 redirect）
    * ====================================== */
   {
     path: '/',
     name: '_home',
-    redirect: '/home',
     component: Layout,
     meta: { hideInMenu: false, notCache: true },
     children: [
       {
-        path: '/home',
+        path: 'home',          // ← 这里用相对路径
         name: 'home',
         meta: {
           hideInMenu: false,
@@ -210,8 +205,7 @@ export default [
   },
 
   /* =============================================================
-   * ★★ 独立手机导航页面（无侧边栏、无顶部，全屏显示）
-   *    /system/mobile_navigation
+   * 独立手机导航页面（无侧边栏）
    * ============================================================= */
   {
     path: '/system/mobile_navigation',

@@ -3,6 +3,7 @@
     <div class="lan-fixed">
       <sl-language />
     </div>
+
     <div class="page-account-container">
       <div class="header">
         <div>
@@ -15,6 +16,7 @@
         <div class="title">
           <span>{{ $t('login.tab') }}</span>
         </div>
+
         <div class="acc-pwd">
           <Form ref="formInline" :model="formInline" :rules="ruleInline">
             <FormItem prop="username">
@@ -26,6 +28,7 @@
                 style="width: 100%"
               />
             </FormItem>
+
             <FormItem prop="password">
               <Input
                 v-model="formInline.password"
@@ -41,9 +44,15 @@
         </div>
 
         <div>
-          <Button size="large" class="submit" type="primary" long @click="handleSubmit()">{{
-            $t('login.submit')
-          }}</Button>
+          <Button
+            size="large"
+            class="submit"
+            type="primary"
+            long
+            @click="handleSubmit"
+          >
+            {{ $t('login.submit') }}
+          </Button>
         </div>
       </div>
     </div>
@@ -51,11 +60,10 @@
 </template>
 
 <script>
-import i18n from '@/language'; // 国际化
+import i18n from '@/language';
 import { catchToken } from '@/lib/js/cache';
 
 export default {
-  components: {},
   data() {
     return {
       formInline: {
@@ -80,43 +88,45 @@ export default {
       }
     };
   },
-  computed: {},
-  created() {},
+
+  mounted() {
+    catchToken.remove();
+    window.addEventListener('keydown', this.enterKeyDown);
+  },
+
   beforeDestroy() {
     window.removeEventListener('keydown', this.enterKeyDown);
   },
-  mounted() {
-    this.$nextTick(() => {
-      catchToken.remove();
 
-      window.addEventListener('keydown', this.enterKeyDown);
-    });
-  },
   methods: {
-    // 登录
     handleSubmit() {
       this.$refs.formInline.validate((valid) => {
-        if (valid) {
-          this.$api
-            .loginMethod({
-              data: this.formInline
-            })
-            .then((res) => {
-              catchToken.set(res);
-              this.$router.push(this.$pub.slBrowserDevice().mobile ? 'h5_location' : '/home');
-            });
-          // this.$router.push(this.$pub.slBrowserDevice().mobile ? 'h5_location' : '/home');
-        } else {
-          // this.$Message.error('Fail!');
-        }
+        if (!valid) return;
+
+        this.$api
+          .loginMethod({
+            data: this.formInline
+          })
+          .then((res) => {
+            catchToken.set(res);
+
+            // ★★★ worker1 强制跳 h5
+            if (this.formInline.username === 'worker1') {
+              this.$router.replace({ name: 'h5_location' });
+            } else {
+              this.$router.replace(
+                this.$pub.slBrowserDevice().mobile
+                  ? { name: 'h5_location' }
+                  : { path: '/home' }
+              );
+            }
+          });
       });
     },
 
     enterKeyDown(e) {
-      switch (e.keyCode) {
-        case 13:
-          this.handleSubmit();
-          break;
+      if (e.keyCode === 13) {
+        this.handleSubmit();
       }
     }
   }

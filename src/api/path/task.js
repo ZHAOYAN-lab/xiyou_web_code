@@ -1,52 +1,75 @@
 /*
  * @Author: shenlan
- * @Description: 任务管理接口（统一封装版）
+ * @Description: 任务管理接口（统一恢复为老版可用写法）
  */
 import { get, post } from '@/api/http/axios';
 
 const baseUrl = '/ifengniao/cloud/server/xiyou/task';
 
+/* ================= 管理端 ================= */
+
+/* 查询任务列表 */
 export function taskGetList(params) {
-  return get(`${baseUrl}/list`, {
-    params: params
-  });
+  return get(`${baseUrl}/list`, { params });
 }
 
+/* 新增任务 */
 export function taskAdd(data) {
   return post(`${baseUrl}/add`, {
-    data: data
+    url: `${baseUrl}/add`,
+    data
   });
 }
 
-// ★★★ 派发任务必须用 URL 参数，不支持 JSON Body ★★★
-export function taskDispatch(data) {
-  const employeesStr = Array.isArray(data.employees)
-    ? data.employees.join(',')
-    : data.employees;
+/* 派发任务 */
+export function taskDispatch({ taskId, employees }) {
+  const employeesStr = Array.isArray(employees)
+    ? employees.join(',')
+    : employees;
 
   return post(`${baseUrl}/dispatch`, {
-    url: `${baseUrl}/dispatch?taskId=${data.taskId}&employees=${employeesStr}`,
+    url: `${baseUrl}/dispatch?taskId=${taskId}&employees=${employeesStr}`,
     data: {}
   });
 }
 
-export function taskCancel(data) {
+/* 取消任务（✅ 关键修复点） */
+export function taskCancel({ taskId }) {
   return post(`${baseUrl}/cancel`, {
-    url: `${baseUrl}/cancel?taskId=${data.taskId}`,
+    url: `${baseUrl}/cancel?taskId=${taskId}`,
     data: {}
   });
 }
 
-export function taskDelete(data) {
+/* 删除任务 */
+export function taskDelete({ id }) {
   return post(`${baseUrl}/delete`, {
-    url: `${baseUrl}/delete?id=${data.id}`,
+    url: `${baseUrl}/delete?id=${id}`,
     data: {}
   });
 }
 
-/* ★★★★★ 新增：手机端自动获取我的任务 ★★★★★ */
-export function taskGetMyTask(param) {
-  return get(`${baseUrl}/mobile/current`, param);
+/* ================= H5 worker ================= */
+
+/* 我的任务 */
+export function taskMy() {
+  return get(`${baseUrl}/my`);
+}
+
+/* 开始执行：已派发 → 执行中 */
+export function taskStart({ taskId }) {
+  return post(`${baseUrl}/start`, {
+    url: `${baseUrl}/start?taskId=${taskId}`,
+    data: {}
+  });
+}
+
+/* 已到达：执行中 → 已完成 */
+export function taskArrived({ taskId }) {
+  return post(`${baseUrl}/arrived`, {
+    url: `${baseUrl}/arrived?taskId=${taskId}`,
+    data: {}
+  });
 }
 
 export default {
@@ -55,5 +78,7 @@ export default {
   taskDispatch,
   taskCancel,
   taskDelete,
-  taskGetMyTask
+  taskMy,
+  taskStart,
+  taskArrived
 };
