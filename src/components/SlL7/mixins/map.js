@@ -1,6 +1,7 @@
-/* * @Author: shenlan
+/*
+ * @Author: shenlan
  * @Company: 蜂鸟创新
- * @LastEditors: shenlan（修复版：增加地图加载检查 + 调试日志）
+ * @LastEditors: shenlan（修复版：修正导航坐标传递逻辑）
  * @Description: L7 地图核心逻辑（导航 + 商品区域显示）
  */
 
@@ -245,36 +246,39 @@ export default {
         return;
       }
 
+      // 2. 获取最佳路线 (格式为对象数组 [{x:1, y:1}, {x:2, y:2}])
       const { name, route } = this.chooseBestRoute();
       if (!route || !route.length) {
         this.$Message && this.$Message.error('固定路线未配置');
         return;
       }
 
-      // 2. 转换坐标并打印调试
-      const routeXY = route.map((p) => this.metersToWeb(p.x, p.y));
-      console.log('[Nav] 路线坐标(Pixel):', routeXY);
+      // 3. ★★★ 关键修复：转换为 guiji.js 期望的数组格式，但保留米坐标（不转像素） ★★★
+      // guijiLineShow 内部会调用 l7ConvertDataToWeb，所以这里必须传入【米】
+      const routeMetersArray = route.map((p) => [p.x, p.y]);
+      
+      console.log('[Nav] 路线坐标(米):', routeMetersArray);
 
-      // 3. 赋值导航状态
+      // 4. 更新 Vue 状态 (nav.route 保留像素坐标用于逻辑判断，可选)
       this.nav.enabled = true;
-      this.nav.route = routeXY.slice();
+      this.nav.route = routeMetersArray.map(([x,y]) => this.metersToWeb(x,y)); 
       this.nav.routeName = name;
-      this.nav.startPoint = routeXY[0];
-      this.nav.targetPoint = routeXY[routeXY.length - 1];
+      this.nav.startPoint = this.nav.route[0];
+      this.nav.targetPoint = this.nav.route[this.nav.route.length - 1];
       this.nav.guideReached = false;
 
-      // 4. 清理并绘制
+      // 5. 绘制路线
       this.guijiClear && this.guijiClear();
 
       if (this.guijiLineShow) {
         this.guijiLineShow({
           key: 'route',
-          data: routeXY, // 格式：[[x,y], [x,y]]
+          data: routeMetersArray, // ★ 传米坐标数组
           color: '#1E90FF',
-          size: 4 // 加粗一点，防止太细看不清
+          size: 4
         });
       } else {
-        console.error('[Nav] guijiLineShow 方法不存在');
+        console.error('[Nav] guijiLineShow 方法不存在，请检查 mixin 引入');
       }
 
       this.$Message &&

@@ -1,7 +1,7 @@
 /*
  * @Author: shenlan
  * @Company: 蜂鸟创新
- * @LastEditors: shenlan（导航版整合 + 线路刷新修正）
+ * @LastEditors: shenlan（修复版：增强数据容错 + 强制渲染）
  * @Description: 轨迹 + 导航路线渲染
  */
 
@@ -28,7 +28,7 @@ export default {
 
   methods: {
     /* ============================================================
-     * 轨迹（你原来的逻辑保留）
+     * 轨迹（保留原逻辑）
      * ============================================================ */
     guijiSetData(params) {
       let data = params;
@@ -169,11 +169,13 @@ export default {
         guiji.lineLayer = [];
       }
 
-      // 导航路线（包括 key='route' 的蓝线）
+      // 导航路线
       if (this.navLayers) {
         Object.keys(this.navLayers).forEach((key) => {
           try {
-            scene.removeLayer(this.navLayers[key]);
+            if (this.navLayers[key]) {
+              scene.removeLayer(this.navLayers[key]);
+            }
           } catch (e) {}
         });
         this.navLayers = {};
@@ -181,7 +183,7 @@ export default {
     },
 
     /* ============================================================
-     * 随机颜色（原逻辑保持）
+     * 随机颜色
      * ============================================================ */
     guijiColors(count) {
       let colors = [];
@@ -204,22 +206,33 @@ export default {
     },
 
     /* ============================================================
-     * ★★★ 导航线绘制（统一入口）
-     * data: [[x,y], ...]  数据坐标（米）
+     * ★★★ 导航线绘制（修复版）
+     * data: [[x,y], ...] 必须是米坐标的数组
      * key: 比如 'route'
      * ============================================================ */
     guijiLineShow({ key, color, size, data }) {
       if (!this.scene) return;
-      if (!Array.isArray(data) || data.length < 2) return;
+      if (!Array.isArray(data) || data.length < 2) {
+        console.warn('[guijiLineShow] 数据无效', data);
+        return;
+      }
 
       const scene = this.scene;
       const lineSource = [];
 
       // 生成连续的 lineSource
       for (let i = 0; i < data.length - 1; i++) {
-        const [x, y] = data[i];
-        const [x1, y1] = data[i + 1];
+        // ★ 增强容错：data[i] 可能是数组 [x,y] 也可能是对象 {x,y}
+        let startRaw = data[i];
+        let endRaw = data[i + 1];
 
+        // 统一转为数组 [x, y]
+        const [x, y] = Array.isArray(startRaw) ? startRaw : [startRaw.x, startRaw.y];
+        const [x1, y1] = Array.isArray(endRaw) ? endRaw : [endRaw.x, endRaw.y];
+
+        if (x == null || y == null || x1 == null || y1 == null) continue;
+
+        // 坐标转换：米 -> Pixel -> L7 LngLat
         const [lng, lat] = l7ConvertCMtoL(
           l7ConvertDataToWeb({
             mapMetersPerPixel: this.mapMetersPerPixel,
@@ -245,13 +258,14 @@ export default {
         lineSource.push({ lng, lat, lng1, lat1 });
       }
 
-      // 删除旧图层，避免残影（同一个 key 只保留一条线）
+      // 删除旧图层
       if (this.navLayers[key]) {
         try {
           scene.removeLayer(this.navLayers[key]);
         } catch (e) {}
       }
 
+      // ★ zIndex: 20 确保显示在最上层
       const layer = new LineLayer({ zIndex: 20 })
         .source(lineSource, {
           parser: {
@@ -263,14 +277,18 @@ export default {
           }
         })
         .shape('line')
-        .size(size)
-        .color(color)
+        .size(size || 3)
+        .color(color || '#1E90FF')
         .style({
-          lineType: 'solid'
+          lineType: 'solid',
+          opacity: 1
         });
 
       scene.addLayer(layer);
       this.navLayers[key] = layer;
+      
+      // ★ 强制渲染，防止不更新
+      scene.render();
     }
   }
 };
