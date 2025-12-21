@@ -43,6 +43,17 @@
                 {{ currentTask.status }}
               </b>
             </div>
+
+            <!-- ✅ 新增：显示任务区域按钮（只加这个，不动其他结构） -->
+            <Button
+              size="small"
+              type="primary"
+              style="margin-top: 6px"
+              :disabled="!currentTask.areaId"
+              @click="handleShowTaskArea"
+            >
+              显示任务区域
+            </Button>
           </div>
         </div>
       </div>
@@ -95,6 +106,7 @@ import HeaderBar from './components/HeaderBar';
 import l7 from './mixins/l7';
 import SideDrawer from './components/SideDrawer';
 import taskApi from '@/api/path/task';
+import productAreaApi from '@/api/path/product-area';// ✅ 新增：H5 查询区域详情
 
 export default {
   components: { HeaderBar, SideDrawer },
@@ -138,6 +150,32 @@ export default {
 
     toggleCollapse() {
       this.collapsed = !this.collapsed;
+    },
+
+    /* =========================
+     * ✅ 新增：显示任务区域（只新增这个方法，不影响原逻辑）
+     * ========================= */
+    async handleShowTaskArea() {
+      if (!this.currentTask?.areaId) {
+        this.$Message.warning('当前任务未绑定区域');
+        return;
+      }
+
+      try {
+        const res = await productAreaApi.getProductAreaById(this.currentTask.areaId);
+        console.log('[productArea getById]', res);
+
+        // 兼容：有的项目 request 会返回 {data: ...}，有的直接返回 data
+        const area = res?.data ? res.data : res;
+
+        // 交给地图组件去画（sl-l7 里实现 showTaskArea）
+        this.$refs.sll7?.showTaskArea(area);
+
+        this.$Message.success('任务区域已显示');
+      } catch (e) {
+        console.error('[handleShowTaskArea]', e);
+        this.$Message.error('加载任务区域失败');
+      }
     },
 
     /* =========================

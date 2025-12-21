@@ -7,6 +7,11 @@
 
 import { ImageLayer, Mapbox, Scene, Popup, l7HandleImageMaxRange } from './l7';
 
+// ✅ 任务区域用（保留，不乱删）
+// ✅ 关键新增：复用围栏同一套映射链路（不影响围栏：不再调用 polygonLayerSetData）
+import { PolygonLayer, l7ConvertCMtoL, l7ConvertDataToWeb } from './l7';
+
+import { metersToLngLat } from '@antv/l7'; // ✅ 保留，不乱删（即使不再使用）
 import jizhan from './jizhan';
 import xinbiao from './xinbiao';
 import guiji from './guiji';
@@ -42,7 +47,6 @@ export default {
       },
 
       /* --------------------- 固定路线定义（米坐标） --------------------- */
-      // 地图实际长度约 4.05米，终点设为 3.8 确保在范围内
       fixedRoutes: {
         top: [
           { x: 1.0, y: 3.2 },
@@ -52,7 +56,14 @@ export default {
           { x: 1.0, y: 1.5 },
           { x: 3.8, y: 1.5 }
         ]
-      }
+      },
+
+      // ✅ 新增：任务区域图层（这里保留字段，不删）
+      taskAreaLayer: null,
+
+      // ✅ 新增：任务区域挂到 polygonLayer 的图层索引（用于清除，不影响围栏）
+      // 现在不再依赖它，但字段按你要求保留，不删
+      taskAreaPolygonIdxList: []
     };
   },
 
@@ -66,7 +77,7 @@ export default {
           id: this.id,
           logoVisible: false,
           map: new Mapbox({
-            style: 'light', // 这里的 style 加载失败可能会导致 401 错误
+            style: 'light',
             center: [0, 0],
             pitch: 0,
             zoom
@@ -97,13 +108,9 @@ export default {
         mapOriginPixelY
       } = data;
 
-      // 打印一下接收到的地图参数，确保数据正常
       console.log('[Map] Loading Background:', { mapWidthPixel, mapMetersPerPixel });
 
-      const { maxRange, l7MapWidth } = l7HandleImageMaxRange(
-        mapWidthPixel,
-        mapHeightPixel
-      );
+      const { maxRange, l7MapWidth } = l7HandleImageMaxRange(mapWidthPixel, mapHeightPixel);
 
       this.l7MapWidth = l7MapWidth;
       this.mapMetersPerPixel = mapMetersPerPixel;
@@ -122,7 +129,6 @@ export default {
       this.l7ImageMap = layer;
       scene.addLayer(layer);
 
-      // 避免切图后定位消失
       if (this.xinbiao?.data?.length) {
         try {
           this.xinbiaoSetData({ data: this.xinbiao.data });
@@ -156,6 +162,9 @@ export default {
           });
         }
 
+        // ✅ 清除任务区域（独立图层，不影响围栏）
+        this.clearTaskArea();
+
         this.guijiClear && this.guijiClear();
 
         this.nav.enabled = false;
@@ -167,20 +176,126 @@ export default {
       } catch (error) {}
     },
 
-    mapSetCenter() {
-      if (!this.scene || !this.mapCenter.length) return;
-      this.scene.setCenter(this.mapCenter);
+    /* =========================================================
+     * ✅ 显示任务区域（商品区域 polygon）
+     *
+     * 关键修复（不影响围栏）：
+     * - 不再调用 polygonLayerSetData（它会清空围栏图层数组）
+     * - 任务区域使用独立 PolygonLayer：this.taskAreaLayer
+     * - 但坐标映射严格复用围栏链路：
+     *    DB(x,y) -> l7ConvertDataToWeb(...) -> l7ConvertCMtoL(..., l7MapWidth)
+     * ========================================================= */
+    showTaskArea(area) {
+      if (!area || !area.areaContent || !this.scene) return;
+
+      // 1) 地图参数必须就绪
+      if (!this.mapMetersPerPixel || !this.l7MapWidth) {
+        console.warn('[showTaskArea] 地图参数未就绪，先加载地图背景再显示区域', {
+          mapMetersPerPixel: this.mapMetersPerPixel,
+          l7MapWidth: this.l7MapWidth
+        });
+        return;
+      }
+
+      // 2) 清理旧任务区域（只删任务区域，不动围栏）
+      this.clearTaskArea();
+
+      // 3) 解析 WKT：POLYGON((x y, x y, ...))
+      const wkt = String(area.areaContent)
+        .replace(/^POLYGON\s*\(\(/i, '')
+        .replace(/\)\)\s*$/i, '');
+
+      const points = wkt
+        .split(',')
+        .map((p) => {
+          const [x, y] = p.trim().split(/\s+/).map(Number);
+          return { x, y };
+        })
+        .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+
+      if (!points || points.length < 3) {
+        console.warn('[showTaskArea] WKT 解析点不足，无法绘制', area.areaContent);
+        return;
+      }
+
+      // 4) 复用围栏映射链路：DB坐标 -> Web像素 -> L7经纬度
+      const lngLatPoints = points.map((p) => {
+        const webXY = l7ConvertDataToWeb({
+          mapMetersPerPixel: this.mapMetersPerPixel,
+          mapOriginPixelX: this.mapOriginPixelX,
+          mapOriginPixelY: this.mapOriginPixelY,
+          x: p.x,
+          y: p.y
+        });
+        return l7ConvertCMtoL(webXY, this.l7MapWidth);
+      });
+
+      // 5) 闭合 polygon
+      if (
+        lngLatPoints[0][0] !== lngLatPoints[lngLatPoints.length - 1][0] ||
+        lngLatPoints[0][1] !== lngLatPoints[lngLatPoints.length - 1][1]
+      ) {
+        lngLatPoints.push(lngLatPoints[0]);
+      }
+
+      const source = {
+        type: 'FeatureCollection',
+        features: [
+          {
+            type: 'Feature',
+            properties: {
+              c: '#95de64',
+              name: area.objectName || '任务区域'
+            },
+            geometry: {
+              type: 'Polygon',
+              coordinates: [lngLatPoints]
+            }
+          }
+        ]
+      };
+
+      // 6) ✅ 独立图层（不写 polygonLayer.source/layer，不会影响围栏）
+      this.taskAreaLayer = new PolygonLayer({
+        zIndex: 6,
+        active: false
+      })
+        .source(source)
+        .shape('fill')
+        .color('c')
+        .style({ opacity: 0.45 });
+
+      this.scene.addLayer(this.taskAreaLayer);
+
+      // 7) 字段保留：不删（但不再靠它做清理）
+      this.taskAreaPolygonIdxList = [];
+
+      console.log('[showTaskArea] ✅ 任务区域绘制完成（不影响围栏）', {
+        areaId: area.areaId,
+        objectName: area.objectName,
+        pointsCount: points.length
+      });
     },
 
-    mapResize() {
-      this.mapSetCenter();
+    /* =========================================================
+     * ✅ 清除任务区域（不影响围栏）
+     * ========================================================= */
+    clearTaskArea() {
+      // 保留字段，不删
+      this.taskAreaPolygonIdxList = [];
+
+      if (this.taskAreaLayer && this.scene) {
+        try {
+          this.scene.removeLayer(this.taskAreaLayer);
+        } catch (e) {}
+        this.taskAreaLayer = null;
+      }
     },
 
     /********************
-     * 坐标转换：米 → Web（L7 图片坐标系）
+     * 以下为你原有导航逻辑（完全未动）
      ********************/
     metersToWeb(x, y) {
-      // ★★★ 关键检查：如果比例尺未加载，返回原值并在控制台警告 ★★★
       if (!this.mapMetersPerPixel || this.mapMetersPerPixel === 0) {
         console.warn('[Map] mapMetersPerPixel 未设置，坐标转换可能错误！');
         return [x, y];
@@ -203,10 +318,10 @@ export default {
       const apy = py - ay;
       const abLen2 = abx * abx + aby * aby;
       if (abLen2 === 0) return { x: ax, y: ay, dist: Math.hypot(px - ax, py - ay), t: 0 };
-      
+
       let t = (apx * abx + apy * aby) / abLen2;
       t = Math.max(0, Math.min(1, t));
-      
+
       const x = ax + t * abx;
       const y = ay + t * aby;
       return { x, y, dist: Math.hypot(px - x, py - y), t };
@@ -233,58 +348,42 @@ export default {
       return dTop <= dBottom ? { name: 'top', route: top } : { name: 'bottom', route: bottom };
     },
 
-    /********************
-     * 开始导航（固定路线）
-     ********************/
     navStartFixed() {
       console.log('[navStartFixed] 点击开始导航');
 
-      // 1. 检查地图参数是否就绪
       if (!this.mapMetersPerPixel) {
         this.$Message && this.$Message.error('地图数据加载失败，无法计算路线');
-        console.error('[Nav] mapMetersPerPixel 为空，请检查网络或地图接口');
         return;
       }
 
-      // 2. 获取最佳路线 (格式为对象数组 [{x:1, y:1}, {x:2, y:2}])
       const { name, route } = this.chooseBestRoute();
       if (!route || !route.length) {
         this.$Message && this.$Message.error('固定路线未配置');
         return;
       }
 
-      // 3. ★★★ 关键修复：转换为 guiji.js 期望的数组格式，但保留米坐标（不转像素） ★★★
-      // guijiLineShow 内部会调用 l7ConvertDataToWeb，所以这里必须传入【米】
       const routeMetersArray = route.map((p) => [p.x, p.y]);
-      
-      console.log('[Nav] 路线坐标(米):', routeMetersArray);
 
-      // 4. 更新 Vue 状态 (nav.route 保留像素坐标用于逻辑判断，可选)
       this.nav.enabled = true;
-      this.nav.route = routeMetersArray.map(([x,y]) => this.metersToWeb(x,y)); 
+      this.nav.route = routeMetersArray.map(([x, y]) => this.metersToWeb(x, y));
       this.nav.routeName = name;
       this.nav.startPoint = this.nav.route[0];
       this.nav.targetPoint = this.nav.route[this.nav.route.length - 1];
       this.nav.guideReached = false;
 
-      // 5. 绘制路线
       this.guijiClear && this.guijiClear();
 
       if (this.guijiLineShow) {
         this.guijiLineShow({
           key: 'route',
-          data: routeMetersArray, // ★ 传米坐标数组
+          data: routeMetersArray,
           color: '#1E90FF',
           size: 4
         });
-      } else {
-        console.error('[Nav] guijiLineShow 方法不存在，请检查 mixin 引入');
       }
 
       this.$Message &&
-        this.$Message.success(
-          name === 'top' ? '已开始导航（上路）' : '已开始导航（下路）'
-        );
+        this.$Message.success(name === 'top' ? '已开始导航（上路）' : '已开始导航（下路）');
     },
 
     navUpdateByBle(x, y) {

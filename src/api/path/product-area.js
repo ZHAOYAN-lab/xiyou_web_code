@@ -1,16 +1,21 @@
 /*
- * @Author: shenlan
- * @Description: 商品区域 API
+ * 商品区域 API
  */
-import { get, post } from '@/api/http/axios'
+import { get, post } from '@/api/http/axios';
 
-// ★★★ 必改：获取区域列表（必须使用 params 才会发 GET 请求）
+// 查询区域列表
 export function getProductAreaList() {
-  console.log("=== 调用 getProductAreaList API ===");
+  return get(
+    `/ifengniao/cloud/server/xiyou/productArea/list?_=${Date.now()}`
+  );
+}
 
-  return get('/ifengniao/cloud/server/xiyou/productArea/list', {
-    params: { _: Date.now() }  // 防止缓存，确保请求必发
-  });
+// ✅ 根据 areaId 查询区域详情（H5 用，关键接口）
+export function getProductAreaById(areaId) {
+  // ★★★ 直接拼在 URL 上，绕开 get() 封装问题 ★★★
+  return get(
+    `/ifengniao/cloud/server/xiyou/productArea/getById?areaId=${areaId}`
+  );
 }
 
 // 新增区域
@@ -51,14 +56,15 @@ export function deleteProductArea(params) {
 
 // 区域类型
 export function getProductAreaTypes() {
-  return get('/ifengniao/cloud/server/xiyou/productArea/types', {
-    params: { _: Date.now() }
-  });
+  return get(
+    `/ifengniao/cloud/server/xiyou/productArea/types?_=${Date.now()}`
+  );
 }
 
-// ★★★ 关键补充：默认导出，TaskManage.vue 才能正常 import ★★★
+// 默认导出（H5 import 用）
 export default {
   getProductAreaList,
+  getProductAreaById,
   addProductArea,
   updateProductArea,
   deleteProductArea,

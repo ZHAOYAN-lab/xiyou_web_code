@@ -75,10 +75,22 @@ export default {
       if (typeof fn === "function") return fn.call(this);
     },
 
-    /** ★★★ 新增：手动“已到达”按钮调用 ★★★ */
+    /** ★★★ 手动“已到达”按钮调用 ★★★ */
     navArrived() {
       const fn = this.$options.mixins[0].methods.navArrived;
       if (typeof fn === "function") return fn.call(this);
+    },
+
+    /* =========================================================
+     * ✅ 新增：显示任务区域（转发给 map mixin）
+     * ========================================================= */
+    showTaskArea(area) {
+      const fn = this.$options.mixins[0].methods.showTaskArea;
+      if (typeof fn === "function") {
+        return fn.call(this, area);
+      } else {
+        console.warn('[SlL7] showTaskArea 未在 map mixin 中实现');
+      }
     }
   }
 };
