@@ -4,11 +4,46 @@
 
     <div class="for-map">
 
-      <!-- ✅ 右侧：可折叠任务卡片（不遮右上角） -->
+      <!-- ================= 左侧：待执行任务列表 + 红点（可展开/收起） ================= -->
       <div
-        class="task-info-box"
-        :class="{ collapsed }"
+        class="pending-task-box"
+        :class="{ collapsed: pendingCollapsed }"
       >
+        <div class="title" @click="togglePendingCollapse">
+          <span>待执行任务</span>
+          <span
+            v-if="pendingTaskList.length"
+            class="red-dot"
+            :class="{ flash: flashRedDot }"
+          >
+            {{ pendingTaskList.length }}
+          </span>
+        </div>
+
+        <!-- 展开内容 -->
+        <div v-if="!pendingCollapsed">
+          <div v-if="pendingTaskList.length === 0" class="empty">
+            暂无待执行任务
+          </div>
+
+          <ul v-else class="task-list">
+            <li
+              v-for="task in pendingTaskList"
+              :key="task.id"
+              :class="{ active: currentTask && currentTask.id === task.id }"
+              @click="selectPendingTask(task)"
+            >
+              <div class="name">{{ task.objectName }}</div>
+              <div class="desc">
+                {{ task.taskType }} · {{ task.areaName || '-' }}
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- ================= 右侧：任务详情卡片（原结构不动） ================= -->
+      <div class="task-info-box" :class="{ collapsed }">
         <div class="title" @click="toggleCollapse">
           <span>我的任务</span>
           <span class="collapse-btn">
@@ -16,7 +51,6 @@
           </span>
         </div>
 
-        <!-- 内容区 -->
         <div v-if="!collapsed">
           <div v-if="!currentTask" class="empty">
             当前账号没有任务
@@ -44,7 +78,6 @@
               </b>
             </div>
 
-            <!-- ✅ 新增：显示任务区域按钮（只加这个，不动其他结构） -->
             <Button
               size="small"
               type="primary"
@@ -58,7 +91,7 @@
         </div>
       </div>
 
-      <!-- 地图本体（完全不动） -->
+      <!-- 地图（不动） -->
       <Card :bordered="false" class="map-card" dis-hover>
         <sl-l7
           v-if="l7.show"
@@ -69,9 +102,7 @@
       </Card>
     </div>
 
-    <!-- =========================
-      导航按钮区
-    ============================-->
+    <!-- ================= 底部导航按钮 ================= -->
     <div class="nav-btn-box">
       <Button
         type="primary"
@@ -106,7 +137,7 @@ import HeaderBar from './components/HeaderBar';
 import l7 from './mixins/l7';
 import SideDrawer from './components/SideDrawer';
 import taskApi from '@/api/path/task';
-import productAreaApi from '@/api/path/product-area';// ✅ 新增：H5 查询区域详情
+import productAreaApi from '@/api/path/product-area';
 
 export default {
   components: { HeaderBar, SideDrawer },
@@ -114,11 +145,15 @@ export default {
 
   data() {
     return {
-      nav: {
-        enabled: false
-      },
+      nav: { enabled: false },
       currentTask: null,
-      collapsed: false
+      pendingTaskList: [],
+      collapsed: false,
+      pendingCollapsed: false, // ⭐ 新增：左侧折叠状态
+
+      taskTimer: null,
+      lastPendingCount: 0,
+      flashRedDot: false
     };
   },
 
@@ -126,7 +161,18 @@ export default {
     this.$nextTick(() => {
       this.l7.show = true;
       this.fetchMyTask();
+
+      this.taskTimer = setInterval(() => {
+        this.fetchMyTask();
+      }, 5000);
     });
+  },
+
+  beforeDestroy() {
+    if (this.taskTimer) {
+      clearInterval(this.taskTimer);
+      this.taskTimer = null;
+    }
   },
 
   methods: {
@@ -152,104 +198,64 @@ export default {
       this.collapsed = !this.collapsed;
     },
 
-    /* =========================
-     * ✅ 新增：显示任务区域（只新增这个方法，不影响原逻辑）
-     * ========================= */
-    async handleShowTaskArea() {
-      if (!this.currentTask?.areaId) {
-        this.$Message.warning('当前任务未绑定区域');
-        return;
-      }
-
-      try {
-        const res = await productAreaApi.getProductAreaById(this.currentTask.areaId);
-        console.log('[productArea getById]', res);
-
-        // 兼容：有的项目 request 会返回 {data: ...}，有的直接返回 data
-        const area = res?.data ? res.data : res;
-
-        // 交给地图组件去画（sl-l7 里实现 showTaskArea）
-        this.$refs.sll7?.showTaskArea(area);
-
-        this.$Message.success('任务区域已显示');
-      } catch (e) {
-        console.error('[handleShowTaskArea]', e);
-        this.$Message.error('加载任务区域失败');
-      }
+    // ⭐ 新增：左侧折叠
+    togglePendingCollapse() {
+      this.pendingCollapsed = !this.pendingCollapsed;
     },
 
-    /* =========================
-     * 拉取当前账号任务
-     * ========================= */
+    selectPendingTask(task) {
+      this.currentTask = task;
+      this.nav.enabled = task.status === '执行中';
+    },
+
+    async handleShowTaskArea() {
+      if (!this.currentTask?.areaId) return;
+      const res = await productAreaApi.getProductAreaById(this.currentTask.areaId);
+      const area = res?.data || res;
+      this.$refs.sll7?.showTaskArea(area);
+    },
+
     async fetchMyTask() {
       try {
         const res = await taskApi.taskMy();
-        console.log('[taskMy]', res);
+        const list = Array.isArray(res) ? res : [];
+
+        const newPending = list.filter(t => t.status === '已派发');
+
+        if (newPending.length > this.lastPendingCount) {
+          this.flashRedDot = true;
+          setTimeout(() => {
+            this.flashRedDot = false;
+          }, 3000);
+        }
+
+        this.lastPendingCount = newPending.length;
+        this.pendingTaskList = newPending;
 
         this.currentTask =
-          Array.isArray(res) && res.length > 0
-            ? res[0]
-            : null;
+          list.find(t => t.status === '执行中') ||
+          this.currentTask ||
+          this.pendingTaskList[0] ||
+          null;
 
-        // 如果后台已经是“执行中”，前端按钮同步
         this.nav.enabled = this.currentTask?.status === '执行中';
       } catch (e) {
         console.error('[fetchMyTask]', e);
-        this.currentTask = null;
-        this.nav.enabled = false;
       }
     },
 
-    /* =========================
-     * 开始导航 → 已派发 → 执行中
-     * ========================= */
     async handleStartNav() {
       if (!this.currentTask?.id) return;
-
-      try {
-        // ⚠️ 关键：taskId 以 query 形式传给后端
-        await taskApi.taskStart({
-          taskId: this.currentTask.id
-        });
-
-        // 地图开始导航
-        this.$refs.sll7.navStartFixed();
-        this.nav.enabled = true;
-
-        // 重新拉任务，同步后台状态
-        await this.fetchMyTask();
-
-        this.$Message.success('任务已开始执行');
-      } catch (e) {
-        console.error('[taskStart]', e);
-        this.$Message.error('开始执行失败');
-      }
+      await taskApi.taskStart({ taskId: this.currentTask.id });
+      this.$refs.sll7.navStartFixed();
+      await this.fetchMyTask();
     },
 
-    /* =========================
-     * 已到达 → 执行中 → 已完成
-     * ========================= */
     async handleArrived() {
       if (!this.currentTask?.id) return;
-
-      try {
-        // ⚠️ 关键：taskId 以 query 形式传给后端
-        await taskApi.taskArrived({
-          taskId: this.currentTask.id
-        });
-
-        // 清除导航
-        this.$refs.sll7.navArrived();
-        this.nav.enabled = false;
-
-        // 同步后台状态
-        await this.fetchMyTask();
-
-        this.$Message.success('任务已完成');
-      } catch (e) {
-        console.error('[taskArrived]', e);
-        this.$Message.error('到达失败');
-      }
+      await taskApi.taskArrived({ taskId: this.currentTask.id });
+      this.$refs.sll7.navArrived();
+      await this.fetchMyTask();
     }
   }
 };
@@ -258,10 +264,64 @@ export default {
 <style lang="less" scoped>
 @import url('./index.less');
 
-/* 任务卡片：右侧 + 不遮右上角 + 可折叠 */
+/* ================= 左侧待执行任务 ================= */
+.pending-task-box {
+  position: absolute;
+  top: 84px;
+  left: 12px;
+  z-index: 3000;
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 8px;
+  padding: 10px;
+  width: 140px;
+  font-size: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+}
+
+.pending-task-box.collapsed {
+  width: 120px;
+}
+
+.pending-task-box .title {
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+  cursor: pointer;
+  margin-bottom: 6px;
+}
+
+.task-list li {
+  padding: 6px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.task-list li.active {
+  background: #e6f7ff;
+}
+
+.red-dot {
+  background: #f5222d;
+  color: #fff;
+  border-radius: 10px;
+  padding: 0 6px;
+  font-size: 12px;
+}
+
+.red-dot.flash {
+  animation: flash 0.6s ease-in-out infinite;
+}
+
+@keyframes flash {
+  0% { opacity: 1; }
+  50% { opacity: 0.3; }
+  100% { opacity: 1; }
+}
+
+/* ================= 右侧原样 ================= */
 .task-info-box {
   position: absolute;
-  top: 84px;     /* ✅ 已下移，避开右上角控件 */
+  top: 84px;
   right: 12px;
   z-index: 3000;
   background: rgba(255, 255, 255, 0.96);
@@ -276,7 +336,6 @@ export default {
   width: 120px;
 }
 
-/* 标题栏 */
 .task-info-box .title {
   font-weight: bold;
   margin-bottom: 6px;
@@ -285,20 +344,6 @@ export default {
   cursor: pointer;
 }
 
-.collapse-btn {
-  font-size: 12px;
-  color: #2d8cf0;
-}
-
-.task-info div {
-  margin-bottom: 4px;
-}
-
-.empty {
-  color: #999;
-}
-
-/* 底部导航按钮 */
 .nav-btn-box {
   width: 100%;
   padding: 14px;
