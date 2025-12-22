@@ -1,12 +1,14 @@
 <template>
   <div class="task-manage">
     <Card :bordered="false" dis-hover>
-
       <div slot="title" class="header">
         <span class="title">任务管理</span>
-        <Button type="primary" icon="md-add" @click="handleOpenAdd">新增任务</Button>
+        <Button type="primary" icon="md-add" @click="handleOpenAdd">
+          新增任务
+        </Button>
       </div>
 
+      <!-- ================= 表格 ================= -->
       <Table
         border
         :columns="columns"
@@ -19,17 +21,29 @@
         </template>
 
         <template slot="taskType" slot-scope="{ row }">
-          <Tag :color="row.taskType === '取货' ? 'orange' : 'blue'">
+          <Tag :color="getTypeColor(row.taskType)">
             {{ row.taskType || '-' }}
           </Tag>
         </template>
 
-        <template slot="taskDesc" slot-scope="{ row }">
-          {{ row.taskDesc || '-' }}
+        <template slot="remark" slot-scope="{ row }">
+          {{ row.remark || '-' }}
         </template>
 
-        <template slot="areaName" slot-scope="{ row }">
-          {{ row.areaName || '未绑定区域' }}
+        <!-- ✅ 路线（三段展示，最终版） -->
+        <template slot="route" slot-scope="{ row }">
+          <template v-if="row.startFromCurrent === 1">
+            <span>当前位置</span>
+            <template v-if="row.startAreaName">
+              → <span>{{ row.startAreaName }}</span>
+            </template>
+            → <span>{{ row.endAreaName }}</span>
+          </template>
+
+          <template v-else>
+            <span>{{ row.startAreaName }}</span>
+            → <span>{{ row.endAreaName }}</span>
+          </template>
         </template>
 
         <template slot="status" slot-scope="{ row }">
@@ -39,7 +53,6 @@
         </template>
 
         <template slot="action" slot-scope="{ row }">
-          <!-- 派发 -->
           <Tooltip
             v-if="isLocked(row)"
             content="已派发，需先取消"
@@ -57,7 +70,6 @@
             派发
           </Button>
 
-          <!-- 取消派发 -->
           <Button
             type="warning"
             size="small"
@@ -67,7 +79,6 @@
             取消
           </Button>
 
-          <!-- 删除 -->
           <Tooltip
             v-if="row.status === '执行中'"
             content="任务执行中，禁止删除"
@@ -87,7 +98,7 @@
         </template>
       </Table>
 
-      <div style="margin-top: 10px; text-align:right;">
+      <div style="margin-top:10px;text-align:right;">
         <Page
           :total="total"
           :current="page"
@@ -97,26 +108,49 @@
       </div>
     </Card>
 
-    <!-- 新增任务 -->
+    <!-- ================= 新增任务 ================= -->
     <Modal v-model="addDialogVisible" title="新增任务">
-      <Form ref="addFormRef" :model="addForm" :rules="addRules" :label-width="120">
+      <Form
+        ref="addFormRef"
+        :model="addForm"
+        :rules="addRules"
+        :label-width="120"
+      >
         <FormItem label="对象名称" prop="objectName">
           <Input v-model="addForm.objectName" />
         </FormItem>
 
         <FormItem label="所属类型" prop="taskType">
           <Select v-model="addForm.taskType">
+            <Option value="导航">导航</Option>
             <Option value="取货">取货</Option>
             <Option value="送货">送货</Option>
           </Select>
         </FormItem>
 
-        <FormItem label="任务内容" prop="taskDesc">
-          <Input v-model="addForm.taskDesc" type="textarea" :rows="3" />
+        <FormItem label="备注" prop="remark">
+          <Input v-model="addForm.remark" type="textarea" :rows="3" />
         </FormItem>
 
-        <FormItem label="商品区域" prop="areaId">
-          <Select v-model="addForm.areaId">
+        <!-- 开始区域（仅送货） -->
+        <FormItem
+          v-if="showStartArea"
+          label="开始区域"
+          prop="startAreaId"
+        >
+          <Select v-model="addForm.startAreaId">
+            <Option
+              v-for="item in areaList"
+              :key="item.areaId"
+              :value="item.areaId"
+            >
+              {{ item.objectName }}
+            </Option>
+          </Select>
+        </FormItem>
+
+        <FormItem label="结束区域" prop="endAreaId">
+          <Select v-model="addForm.endAreaId">
             <Option
               v-for="item in areaList"
               :key="item.areaId"
@@ -134,15 +168,19 @@
       </div>
     </Modal>
 
-    <!-- 派发任务 -->
+    <!-- ================= 派发 ================= -->
     <Modal v-model="dispatchDialogVisible" title="派发任务">
-      <Form :model="dispatchForm" :label-width="100">
-        <FormItem label="所属区域">
-          <Input :value="currentDispatchRow?.areaName" disabled />
+      <Form :label-width="100">
+        <FormItem label="路线">
+          <Input :value="dispatchRouteText" disabled />
         </FormItem>
 
-        <FormItem label="任务内容">
-          <Input :value="currentDispatchRow?.taskDesc" type="textarea" disabled />
+        <FormItem label="备注">
+          <Input
+            :value="currentDispatchRow?.remark"
+            type="textarea"
+            disabled
+          />
         </FormItem>
 
         <FormItem label="选择员工">
@@ -191,16 +229,19 @@ export default {
       addForm: {
         objectName: '',
         taskType: '',
-        taskDesc: '',
-        areaId: null,
-        areaName: ''
+        remark: '',
+        startFromCurrent: 1,
+        startAreaId: null,
+        startAreaName: '',
+        endAreaId: null,
+        endAreaName: ''
       },
 
       addRules: {
         objectName: [{ required: true, message: '请输入对象名称' }],
         taskType: [{ required: true, message: '请选择类型' }],
-        taskDesc: [{ required: true, message: '请输入任务内容' }],
-        areaId: [{ required: true, message: '请选择商品区域' }]
+        remark: [{ required: true, message: '请输入备注' }],
+        endAreaId: [{ required: true, message: '请选择结束区域' }]
       },
 
       currentDispatchRow: null,
@@ -209,14 +250,39 @@ export default {
       },
 
       columns: [
-        { type: 'index', width: 70, align: 'center' },
+        { type: 'index', width: 60, align: 'center' },
         { title: '对象名称', slot: 'objectName', align: 'center' },
-        { title: '所属类型', slot: 'taskType', align: 'center' },
-        { title: '任务内容', slot: 'taskDesc', align: 'center' },
-        { title: '商品区域', slot: 'areaName', align: 'center' },
+        { title: '类型', slot: 'taskType', align: 'center' },
+        { title: '备注', slot: 'remark', align: 'center' },
+        { title: '路线', slot: 'route', align: 'center' },
         { title: '状态', slot: 'status', align: 'center' },
-        { title: '操作', slot: 'action', align: 'center' }
+        { title: '操作', slot: 'action', align: 'center', width: 220 }
       ]
+    }
+  },
+
+  computed: {
+    showStartArea() {
+      return this.addForm.taskType === '送货'
+    },
+
+    dispatchRouteText() {
+      if (!this.currentDispatchRow) return ''
+
+      const row = this.currentDispatchRow
+      const parts = []
+
+      if (row.startFromCurrent === 1) {
+        parts.push('当前位置')
+      }
+
+      if (row.startAreaName) {
+        parts.push(row.startAreaName)
+      }
+
+      parts.push(row.endAreaName)
+
+      return parts.join(' → ')
     }
   },
 
@@ -227,6 +293,13 @@ export default {
   },
 
   methods: {
+    getTypeColor(type) {
+      if (type === '导航') return 'blue'
+      if (type === '取货') return 'orange'
+      if (type === '送货') return 'purple'
+      return 'default'
+    },
+
     isLocked(row) {
       return row.status === '已派发' || row.status === '执行中'
     },
@@ -271,7 +344,16 @@ export default {
     },
 
     handleOpenAdd() {
-      this.addForm = { objectName: '', taskType: '', taskDesc: '', areaId: null }
+      this.addForm = {
+        objectName: '',
+        taskType: '',
+        remark: '',
+        startFromCurrent: 1,
+        startAreaId: null,
+        startAreaName: '',
+        endAreaId: null,
+        endAreaName: ''
+      }
       this.addDialogVisible = true
     },
 
@@ -279,8 +361,15 @@ export default {
       this.$refs.addFormRef.validate(valid => {
         if (!valid) return
 
-        const area = this.areaList.find(a => a.areaId === this.addForm.areaId)
-        this.addForm.areaName = area ? area.objectName : ''
+        const startArea = this.areaList.find(
+          a => a.areaId === this.addForm.startAreaId
+        )
+        const endArea = this.areaList.find(
+          a => a.areaId === this.addForm.endAreaId
+        )
+
+        this.addForm.startAreaName = startArea?.objectName || ''
+        this.addForm.endAreaName = endArea?.objectName || ''
 
         taskApi.taskAdd(this.addForm).then(() => {
           this.$Message.success('新增成功')
@@ -345,7 +434,6 @@ export default {
   font-size: 14px;
   font-weight: bold;
 }
-
 .row-disabled td {
   background-color: #f5f7fa !important;
   color: #999;
