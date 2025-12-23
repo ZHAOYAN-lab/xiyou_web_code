@@ -1,14 +1,10 @@
 <template>
   <div class="sl-main">
-    <header-bar @drawerToggle="drawerToggle"></header-bar>
+    <header-bar @drawerToggle="drawerToggle" />
 
     <div class="for-map">
-
-      <!-- ================= 左侧：待执行任务列表 + 红点（可展开/收起） ================= -->
-      <div
-        class="pending-task-box"
-        :class="{ collapsed: pendingCollapsed }"
-      >
+      <!-- ================= 左侧：待执行任务 ================= -->
+      <div class="pending-task-box" :class="{ collapsed: pendingCollapsed }">
         <div class="title" @click="togglePendingCollapse">
           <span>待执行任务</span>
           <span
@@ -20,7 +16,6 @@
           </span>
         </div>
 
-        <!-- 展开内容 -->
         <div v-if="!pendingCollapsed">
           <div v-if="pendingTaskList.length === 0" class="empty">
             暂无待执行任务
@@ -33,22 +28,29 @@
               :class="{ active: currentTask && currentTask.id === task.id }"
               @click="selectPendingTask(task)"
             >
-              <div class="name">{{ task.objectName }}</div>
+              <div class="name">{{ task.objectName || '-' }}</div>
               <div class="desc">
-                {{ task.taskType }} · {{ task.areaName || '-' }}
+                <template v-if="task.startAreaName && task.endAreaName">
+                  起点 {{ task.startAreaName }} → 终点 {{ task.endAreaName }}
+                </template>
+                <template v-else-if="task.endAreaName">
+                  终点 {{ task.endAreaName }}
+                </template>
+                <template v-else-if="task.startAreaName">
+                  起点 {{ task.startAreaName }}
+                </template>
+                <template v-else>-</template>
               </div>
             </li>
           </ul>
         </div>
       </div>
 
-      <!-- ================= 右侧：任务详情卡片（原结构不动） ================= -->
+      <!-- ================= 右侧：任务详情 ================= -->
       <div class="task-info-box" :class="{ collapsed }">
         <div class="title" @click="toggleCollapse">
           <span>我的任务</span>
-          <span class="collapse-btn">
-            {{ collapsed ? '展开' : '收起' }}
-          </span>
+          <span class="collapse-btn">{{ collapsed ? '展开' : '收起' }}</span>
         </div>
 
         <div v-if="!collapsed">
@@ -58,10 +60,28 @@
 
           <div v-else class="task-info">
             <div>ID：{{ currentTask.id }}</div>
-            <div>类型：{{ currentTask.taskType }}</div>
-            <div>对象：{{ currentTask.objectName }}</div>
-            <div>区域：{{ currentTask.areaName }}</div>
-            <div>内容：{{ currentTask.taskDesc }}</div>
+            <div>类型：{{ currentTask.taskType || '-' }}</div>
+            <div>对象：{{ currentTask.objectName || '-' }}</div>
+
+            <div>
+              区域：
+              <template v-if="currentTask.startAreaName && currentTask.endAreaName">
+                起点 {{ currentTask.startAreaName }} →
+                终点 {{ currentTask.endAreaName }}
+              </template>
+              <template v-else-if="currentTask.endAreaName">
+                终点 {{ currentTask.endAreaName }}
+              </template>
+              <template v-else-if="currentTask.startAreaName">
+                起点 {{ currentTask.startAreaName }}
+              </template>
+              <template v-else>-</template>
+            </div>
+
+            <div>
+              备注：{{ currentTask.remark || currentTask.taskDesc || '-' }}
+            </div>
+
             <div>
               状态：
               <b
@@ -82,7 +102,7 @@
               size="small"
               type="primary"
               style="margin-top: 6px"
-              :disabled="!currentTask.areaId"
+              :disabled="!(currentTask.startAreaId || currentTask.endAreaId)"
               @click="handleShowTaskArea"
             >
               显示任务区域
@@ -91,7 +111,7 @@
         </div>
       </div>
 
-      <!-- 地图（不动） -->
+      <!-- ================= 地图 ================= -->
       <Card :bordered="false" class="map-card" dis-hover>
         <sl-l7
           v-if="l7.show"
@@ -102,14 +122,14 @@
       </Card>
     </div>
 
-    <!-- ================= 底部导航按钮 ================= -->
+    <!-- ================= 底部按钮 ================= -->
     <div class="nav-btn-box">
       <Button
         type="primary"
-        :disabled="!currentTask || currentTask.status !== '已派发'"
+        :disabled="!currentTask || taskStage === 'DONE'"
         @click="handleStartNav"
       >
-        开始导航（固定路线）
+        {{ taskStage === 'TO_END' ? '继续导航（去终点）' : '开始导航（去起点）' }}
       </Button>
 
       <Button
@@ -134,8 +154,8 @@
 
 <script>
 import HeaderBar from './components/HeaderBar';
-import l7 from './mixins/l7';
 import SideDrawer from './components/SideDrawer';
+import l7 from './mixins/l7';
 import taskApi from '@/api/path/task';
 import productAreaApi from '@/api/path/product-area';
 
@@ -147,12 +167,11 @@ export default {
     return {
       nav: { enabled: false },
       currentTask: null,
+      taskStage: 'TO_START',
       pendingTaskList: [],
       collapsed: false,
-      pendingCollapsed: false, // ⭐ 新增：左侧折叠状态
-
+      pendingCollapsed: false,
       taskTimer: null,
-      lastPendingCount: 0,
       flashRedDot: false
     };
   },
@@ -161,18 +180,12 @@ export default {
     this.$nextTick(() => {
       this.l7.show = true;
       this.fetchMyTask();
-
-      this.taskTimer = setInterval(() => {
-        this.fetchMyTask();
-      }, 5000);
+      this.taskTimer = setInterval(this.fetchMyTask, 5000);
     });
   },
 
   beforeDestroy() {
-    if (this.taskTimer) {
-      clearInterval(this.taskTimer);
-      this.taskTimer = null;
-    }
+    clearInterval(this.taskTimer);
   },
 
   methods: {
@@ -185,12 +198,10 @@ export default {
     },
 
     xinbiaoOnChange(v) {
-      this.l7.switch.jz = v;
       this.$refs.sll7?.xinbiaoToggle(v);
     },
 
     weilanOnchange(v) {
-      this.l7.switch.wl = v;
       this.$refs.sll7?.polygonLayerToggle(v);
     },
 
@@ -198,68 +209,92 @@ export default {
       this.collapsed = !this.collapsed;
     },
 
-    // ⭐ 新增：左侧折叠
     togglePendingCollapse() {
       this.pendingCollapsed = !this.pendingCollapsed;
     },
 
+    /** ⭐⭐⭐ 关键修复点：切换任务必清区域 ⭐⭐⭐ */
     selectPendingTask(task) {
+      this.$refs.sll7?.clearTaskArea();
+
       this.currentTask = task;
+      this.calcTaskStage(task);
       this.nav.enabled = task.status === '执行中';
     },
 
-    async handleShowTaskArea() {
-      if (!this.currentTask?.areaId) return;
-      const res = await productAreaApi.getProductAreaById(this.currentTask.areaId);
-      const area = res?.data || res;
-      this.$refs.sll7?.showTaskArea(area);
+    calcTaskStage(task) {
+      if (!task) return (this.taskStage = 'TO_START');
+      if (task.status === '已完成') return (this.taskStage = 'DONE');
+      if (task.reachedStart) return (this.taskStage = 'TO_END');
+      this.taskStage = 'TO_START';
     },
 
-    async fetchMyTask() {
-      try {
-        const res = await taskApi.taskMy();
-        const list = Array.isArray(res) ? res : [];
+    async handleShowTaskArea() {
+      if (!this.currentTask) return;
 
-        const newPending = list.filter(t => t.status === '已派发');
+      const ids = [];
+      if (this.currentTask.startAreaId) ids.push(this.currentTask.startAreaId);
+      if (this.currentTask.endAreaId) ids.push(this.currentTask.endAreaId);
 
-        if (newPending.length > this.lastPendingCount) {
-          this.flashRedDot = true;
-          setTimeout(() => {
-            this.flashRedDot = false;
-          }, 3000);
-        }
-
-        this.lastPendingCount = newPending.length;
-        this.pendingTaskList = newPending;
-
-        this.currentTask =
-          list.find(t => t.status === '执行中') ||
-          this.currentTask ||
-          this.pendingTaskList[0] ||
-          null;
-
-        this.nav.enabled = this.currentTask?.status === '执行中';
-      } catch (e) {
-        console.error('[fetchMyTask]', e);
+      for (const id of ids) {
+        const res = await productAreaApi.getProductAreaById(id);
+        const area = res?.data || res;
+        area && this.$refs.sll7?.showTaskArea(area);
       }
     },
 
+    async fetchMyTask() {
+      const res = await taskApi.taskMy();
+      const list = Array.isArray(res) ? res : [];
+
+      this.pendingTaskList = list.filter(t => t.status === '已派发');
+
+      this.currentTask =
+        list.find(t => t.status === '执行中') ||
+        this.currentTask ||
+        this.pendingTaskList[0] ||
+        null;
+
+      if (this.currentTask) this.calcTaskStage(this.currentTask);
+    },
+
     async handleStartNav() {
-      if (!this.currentTask?.id) return;
-      await taskApi.taskStart({ taskId: this.currentTask.id });
-      this.$refs.sll7.navStartFixed();
-      await this.fetchMyTask();
+      if (!this.currentTask) return;
+
+      if (this.taskStage === 'TO_START') {
+        await taskApi.taskStart({ taskId: this.currentTask.id });
+      }
+
+      this.nav.enabled = true;
+      this.$refs.sll7?.navStartFixed({
+        target: this.taskStage === 'TO_START' ? 'START' : 'END'
+      });
     },
 
     async handleArrived() {
-      if (!this.currentTask?.id) return;
-      await taskApi.taskArrived({ taskId: this.currentTask.id });
-      this.$refs.sll7.navArrived();
-      await this.fetchMyTask();
+      if (!this.currentTask) return;
+
+      if (this.taskStage === 'TO_START') {
+        this.currentTask = { ...this.currentTask, reachedStart: true };
+        this.taskStage = 'TO_END';
+        this.nav.enabled = false;
+        this.$refs.sll7?.navArrived();
+        return;
+      }
+
+      if (this.taskStage === 'TO_END') {
+        await taskApi.taskArrived({ taskId: this.currentTask.id });
+        this.currentTask = { ...this.currentTask, status: '已完成' };
+        this.taskStage = 'DONE';
+        this.nav.enabled = false;
+        this.$refs.sll7?.navArrived();
+        this.fetchMyTask();
+      }
     }
   }
 };
 </script>
+
 
 <style lang="less" scoped>
 @import url('./index.less');

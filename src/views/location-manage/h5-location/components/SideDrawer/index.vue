@@ -15,15 +15,9 @@
             <p slot="extra">{{ mixinHeader.dateTime }}</p>
           </Cell>
 
-          <Cell :title="$t('home.card1.a')">
-            <iSwitch slot="extra" v-model="drawer.switch.jz" @on-change="l7MapToggleJiZhanLayer" />
-          </Cell>
-          <Cell :title="$t('home.card1.b')">
-            <iSwitch slot="extra" v-model="drawer.switch.xb" @on-change="l7MapToggleXinBiaoLayer" />
-          </Cell>
-          <Cell :title="$t('home.card1.c')">
-            <iSwitch slot="extra" v-model="drawer.switch.wl" @on-change="l7MapTogglePolygonLayer" />
-          </Cell>
+
+
+          
 
           <Cell :title="$t('base.map')">
             <div slot="extra" class="sl-width-100">

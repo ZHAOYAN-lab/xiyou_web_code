@@ -1,14 +1,13 @@
 /*
  * @Author: shenlan
  * @Company: 蜂鸟创新
- * @LastEditors: shenlan（修复版：修正导航坐标传递逻辑）
+ * @LastEditors: shenlan（修复版：修正导航坐标传递逻辑 + 任务区域支持多块同时显示）
  * @Description: L7 地图核心逻辑（导航 + 商品区域显示）
  */
 
 import { ImageLayer, Mapbox, Scene, Popup, l7HandleImageMaxRange } from './l7';
 
 // ✅ 任务区域用（保留，不乱删）
-// ✅ 关键新增：复用围栏同一套映射链路（不影响围栏：不再调用 polygonLayerSetData）
 import { PolygonLayer, l7ConvertCMtoL, l7ConvertDataToWeb } from './l7';
 
 import { metersToLngLat } from '@antv/l7'; // ✅ 保留，不乱删（即使不再使用）
@@ -58,11 +57,14 @@ export default {
         ]
       },
 
-      // ✅ 新增：任务区域图层（这里保留字段，不删）
+      // ✅ 兼容字段：保留不删（你原来是单层）
       taskAreaLayer: null,
 
-      // ✅ 新增：任务区域挂到 polygonLayer 的图层索引（用于清除，不影响围栏）
-      // 现在不再依赖它，但字段按你要求保留，不删
+      // ✅ 新增：支持多块区域同时显示
+      taskAreaLayers: [],          // 存所有任务区域 layer
+      taskAreaLayerMap: {},        // areaId -> layer（用于去重覆盖）
+
+      // ✅ 字段保留：不删
       taskAreaPolygonIdxList: []
     };
   },
@@ -162,7 +164,7 @@ export default {
           });
         }
 
-        // ✅ 清除任务区域（独立图层，不影响围栏）
+        // ✅ 清除任务区域（多块）
         this.clearTaskArea();
 
         this.guijiClear && this.guijiClear();
@@ -177,16 +179,40 @@ export default {
     },
 
     /* =========================================================
-     * ✅ 显示任务区域（商品区域 polygon）
-     *
-     * 关键修复（不影响围栏）：
-     * - 不再调用 polygonLayerSetData（它会清空围栏图层数组）
-     * - 任务区域使用独立 PolygonLayer：this.taskAreaLayer
-     * - 但坐标映射严格复用围栏链路：
-     *    DB(x,y) -> l7ConvertDataToWeb(...) -> l7ConvertCMtoL(..., l7MapWidth)
+     * WKT 解析工具：POLYGON((x y, x y, ...))
+     * 只取第一圈点
      * ========================================================= */
-    showTaskArea(area) {
+    parseWktPolygonPoints(areaContent) {
+      const raw = String(areaContent || '').trim();
+      if (!raw) return [];
+
+      // 仅支持 POLYGON((...))，其他格式直接返回空
+      const cleaned = raw
+        .replace(/^POLYGON\s*\(\(/i, '')
+        .replace(/\)\)\s*$/i, '');
+
+      const pts = cleaned
+        .split(',')
+        .map((p) => {
+          const [x, y] = p.trim().split(/\s+/).map(Number);
+          return { x, y };
+        })
+        .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+
+      return pts;
+    },
+
+    /* =========================================================
+     * ✅ 显示任务区域（支持多块同时显示）
+     *
+     * 默认：不清理旧区域（append = true）
+     * 若你想“只显示一个区域”，外部先调用 clearTaskArea()
+     * 或调用 showTaskArea(area, { append:false })
+     * ========================================================= */
+    showTaskArea(area, options = {}) {
       if (!area || !area.areaContent || !this.scene) return;
+
+      const { append = true } = options;
 
       // 1) 地图参数必须就绪
       if (!this.mapMetersPerPixel || !this.l7MapWidth) {
@@ -197,28 +223,20 @@ export default {
         return;
       }
 
-      // 2) 清理旧任务区域（只删任务区域，不动围栏）
-      this.clearTaskArea();
+      // 2) append=false 时，先清空所有任务区域
+      if (!append) {
+        this.clearTaskArea();
+      }
 
-      // 3) 解析 WKT：POLYGON((x y, x y, ...))
-      const wkt = String(area.areaContent)
-        .replace(/^POLYGON\s*\(\(/i, '')
-        .replace(/\)\)\s*$/i, '');
-
-      const points = wkt
-        .split(',')
-        .map((p) => {
-          const [x, y] = p.trim().split(/\s+/).map(Number);
-          return { x, y };
-        })
-        .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+      // 3) 解析 WKT
+      const points = this.parseWktPolygonPoints(area.areaContent);
 
       if (!points || points.length < 3) {
         console.warn('[showTaskArea] WKT 解析点不足，无法绘制', area.areaContent);
         return;
       }
 
-      // 4) 复用围栏映射链路：DB坐标 -> Web像素 -> L7经纬度
+      // 4) 映射：DB坐标 -> Web -> L7
       const lngLatPoints = points.map((p) => {
         const webXY = l7ConvertDataToWeb({
           mapMetersPerPixel: this.mapMetersPerPixel,
@@ -255,8 +273,19 @@ export default {
         ]
       };
 
-      // 6) ✅ 独立图层（不写 polygonLayer.source/layer，不会影响围栏）
-      this.taskAreaLayer = new PolygonLayer({
+      // 6) ✅ 去重覆盖：同 areaId 先删旧 layer
+      const key = area.areaId ?? area.id ?? area.objectName ?? JSON.stringify(lngLatPoints[0]);
+      const old = this.taskAreaLayerMap[key];
+      if (old && this.scene) {
+        try {
+          this.scene.removeLayer(old);
+        } catch (e) {}
+        this.taskAreaLayers = this.taskAreaLayers.filter((l) => l !== old);
+        delete this.taskAreaLayerMap[key];
+      }
+
+      // 7) 新建 layer
+      const layer = new PolygonLayer({
         zIndex: 6,
         active: false
       })
@@ -265,31 +294,45 @@ export default {
         .color('c')
         .style({ opacity: 0.45 });
 
-      this.scene.addLayer(this.taskAreaLayer);
+      this.scene.addLayer(layer);
 
-      // 7) 字段保留：不删（但不再靠它做清理）
+      // 8) 存起来（支持多块）
+      this.taskAreaLayers.push(layer);
+      this.taskAreaLayerMap[key] = layer;
+
+      // 9) 兼容字段：保留最新一次
+      this.taskAreaLayer = layer;
+
+      // 10) 字段保留：不删
       this.taskAreaPolygonIdxList = [];
 
-      console.log('[showTaskArea] ✅ 任务区域绘制完成（不影响围栏）', {
+      console.log('[showTaskArea] ✅ 任务区域绘制完成（支持多块）', {
+        key,
         areaId: area.areaId,
         objectName: area.objectName,
-        pointsCount: points.length
+        pointsCount: points.length,
+        totalLayers: this.taskAreaLayers.length
       });
     },
 
     /* =========================================================
-     * ✅ 清除任务区域（不影响围栏）
+     * ✅ 清除任务区域（清空所有任务区域 layer）
      * ========================================================= */
     clearTaskArea() {
       // 保留字段，不删
       this.taskAreaPolygonIdxList = [];
 
-      if (this.taskAreaLayer && this.scene) {
-        try {
-          this.scene.removeLayer(this.taskAreaLayer);
-        } catch (e) {}
-        this.taskAreaLayer = null;
+      if (this.scene && Array.isArray(this.taskAreaLayers) && this.taskAreaLayers.length) {
+        this.taskAreaLayers.forEach((layer) => {
+          try {
+            this.scene.removeLayer(layer);
+          } catch (e) {}
+        });
       }
+
+      this.taskAreaLayers = [];
+      this.taskAreaLayerMap = {};
+      this.taskAreaLayer = null;
     },
 
     /********************
