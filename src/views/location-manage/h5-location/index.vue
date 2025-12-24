@@ -129,7 +129,7 @@
         :disabled="!currentTask || taskStage === 'DONE'"
         @click="handleStartNav"
       >
-        {{ taskStage === 'TO_END' ? '继续导航（去终点）' : '开始导航（去起点）' }}
+        {{ navButtonText }}
       </Button>
 
       <Button
@@ -176,6 +176,15 @@ export default {
     };
   },
 
+  computed: {
+    navButtonText() {
+      if (!this.currentTask) return '开始导航';
+      const target = this.taskStage === 'TO_END' ? '终点' : '起点';
+      const action = this.nav.enabled ? '继续' : '开始';
+      return `${action}导航（去${target}）`;
+    }
+  },
+
   mounted() {
     this.$nextTick(() => {
       this.l7.show = true;
@@ -213,6 +222,10 @@ export default {
       this.pendingCollapsed = !this.pendingCollapsed;
     },
 
+    isTwoStageTask(task) {
+      return task?.taskType === '送货';
+    },
+
     /** ⭐⭐⭐ 关键修复点：切换任务必清区域 ⭐⭐⭐ */
     selectPendingTask(task) {
       this.$refs.sll7?.clearTaskArea();
@@ -225,6 +238,7 @@ export default {
     calcTaskStage(task) {
       if (!task) return (this.taskStage = 'TO_START');
       if (task.status === '已完成') return (this.taskStage = 'DONE');
+      if (!this.isTwoStageTask(task)) return (this.taskStage = 'TO_END');
       if (task.reachedStart) return (this.taskStage = 'TO_END');
       this.taskStage = 'TO_START';
     },
@@ -249,20 +263,44 @@ export default {
 
       this.pendingTaskList = list.filter(t => t.status === '已派发');
 
-      this.currentTask =
-        list.find(t => t.status === '执行中') ||
-        this.currentTask ||
-        this.pendingTaskList[0] ||
-        null;
+      const prevTaskId = this.currentTask?.id;
+      const prevReachedStart = this.currentTask?.reachedStart;
 
-      if (this.currentTask) this.calcTaskStage(this.currentTask);
+      const runningTask = list.find(t => t.status === '执行中');
+      const currentFromList = prevTaskId
+        ? list.find(t => t.id === prevTaskId)
+        : null;
+      const nextTask =
+        runningTask || currentFromList || this.pendingTaskList[0] || null;
+
+      this.currentTask = nextTask
+        ? {
+            ...nextTask,
+            reachedStart: prevTaskId === nextTask.id ? prevReachedStart : false
+          }
+        : null;
+
+      if (!this.currentTask) {
+        this.nav.enabled = false;
+        this.calcTaskStage(null);
+        return;
+      }
+
+      if (prevTaskId !== this.currentTask.id) {
+        this.nav.enabled = this.currentTask.status === '执行中';
+      } else if (this.currentTask.status !== '执行中') {
+        this.nav.enabled = false;
+      }
+
+      this.calcTaskStage(this.currentTask);
     },
 
     async handleStartNav() {
       if (!this.currentTask) return;
 
-      if (this.taskStage === 'TO_START') {
+      if (this.currentTask.status !== '执行中') {
         await taskApi.taskStart({ taskId: this.currentTask.id });
+        this.currentTask = { ...this.currentTask, status: '执行中' };
       }
 
       this.nav.enabled = true;
