@@ -44,6 +44,19 @@ export default {
         targetPoint: null,
         guideReached: false
       },
+      predefinedWaypoints: [
+        { x: 4.17, y: 0.7 },
+        { x: 3.1, y: 0.7 },
+        { x: 2.02, y: 0.67 },
+        { x: 0.95, y: 0.69 },
+        { x: 0.9, y: 1.77 },
+        { x: 0.9, y: 2.84 },
+        { x: 1.97, y: 2.84 },
+        { x: 3.04, y: 2.84 },
+        { x: 4.12, y: 2.84 },
+        { x: 4.12, y: 1.77 },
+        { x: 4.17, y: 0.7 }
+      ],
 
       /* --------------------- 固定路线定义（米坐标） --------------------- */
       fixedRoutes: {
@@ -335,9 +348,6 @@ export default {
       this.taskAreaLayer = null;
     },
 
-    /********************
-     * 以下为你原有导航逻辑（完全未动）
-     ********************/
     metersToWeb(x, y) {
       if (!this.mapMetersPerPixel || this.mapMetersPerPixel === 0) {
         console.warn('[Map] mapMetersPerPixel 未设置，坐标转换可能错误！');
@@ -352,6 +362,37 @@ export default {
 
     distance2D(p, q) {
       return Math.hypot(p[0] - q[0], p[1] - q[1]);
+    },
+
+    getAreaCenterFromPoints(points) {
+      if (!Array.isArray(points) || points.length === 0) return null;
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+      points.forEach((p) => {
+        const x = Array.isArray(p) ? p[0] : p?.x;
+        const y = Array.isArray(p) ? p[1] : p?.y;
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      });
+      if (
+        !Number.isFinite(minX) ||
+        !Number.isFinite(minY) ||
+        !Number.isFinite(maxX) ||
+        !Number.isFinite(maxY)
+      ) {
+        return null;
+      }
+      return { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
+    },
+
+    getAreaCenterFromWkt(areaContent) {
+      const points = this.parseWktPolygonPoints(areaContent);
+      return this.getAreaCenterFromPoints(points);
     },
 
     projectPointToSegment(px, py, ax, ay, bx, by) {
@@ -391,21 +432,189 @@ export default {
       return dTop <= dBottom ? { name: 'top', route: top } : { name: 'bottom', route: bottom };
     },
 
-    navStartFixed() {
-      console.log('[navStartFixed] 点击开始导航');
+    getNearestWaypointIndex(target) {
+      let nearestIndex = -1;
+      let minDist = Infinity;
+
+      this.predefinedWaypoints.forEach((wp, index) => {
+        const dist = Math.hypot(target.x - wp.x, target.y - wp.y);
+        if (dist < minDist) {
+          minDist = dist;
+          nearestIndex = index;
+        }
+      });
+      return nearestIndex;
+    },
+
+    getShortestLoopPath(idx1, idx2) {
+      const len = this.predefinedWaypoints.length;
+      if (idx1 === idx2) return [this.predefinedWaypoints[idx1]];
+
+      let start = idx1 === len - 1 ? 0 : idx1;
+      let end = idx2 === len - 1 ? 0 : idx2;
+      const loopLen = len - 1;
+
+      let diff = end - start;
+      if (diff < 0) diff += loopLen;
+      const revDiff = loopLen - diff;
+
+      const path = [];
+      const points = this.predefinedWaypoints;
+
+      if (diff <= revDiff) {
+        let curr = start;
+        while (curr !== end) {
+          path.push(points[curr]);
+          curr = (curr + 1) % loopLen;
+        }
+        path.push(points[end]);
+      } else {
+        let curr = start;
+        while (curr !== end) {
+          path.push(points[curr]);
+          curr = (curr - 1 + loopLen) % loopLen;
+        }
+        path.push(points[end]);
+      }
+      return path;
+    },
+    buildLoopRoute(startPos, targetPos) {
+      if (!startPos || !targetPos) return [];
+      if (!Array.isArray(this.predefinedWaypoints) || this.predefinedWaypoints.length < 2) {
+        return [startPos, targetPos];
+      }
+      const startIdx = this.getNearestWaypointIndex(startPos);
+      const endIdx = this.getNearestWaypointIndex(targetPos);
+      const loopSegment = this.getShortestLoopPath(startIdx, endIdx);
+      return [startPos, ...loopSegment, targetPos];
+    },
+
+    isSamePoint(a, b) {
+      if (!a || !b) return false;
+      const ax = Array.isArray(a) ? a[0] : a.x;
+      const ay = Array.isArray(a) ? a[1] : a.y;
+      const bx = Array.isArray(b) ? b[0] : b.x;
+      const by = Array.isArray(b) ? b[1] : b.y;
+      if (!Number.isFinite(ax) || !Number.isFinite(ay) || !Number.isFinite(bx) || !Number.isFinite(by)) {
+        return false;
+      }
+      return ax === bx && ay === by;
+    },
+    navStartFixed(areaNameOrOptions, areaPosMaybe) {
+      console.log('[navStartFixed] start navigation');
 
       if (!this.mapMetersPerPixel) {
         this.$Message && this.$Message.error('地图数据加载失败，无法计算路线');
+        console.error('[Nav] mapMetersPerPixel is empty');
         return;
       }
 
-      const { name, route } = this.chooseBestRoute();
+      let areaName = '';
+      let areaPos = null;
+      let area = null;
+      let areaContent = null;
+      let startArea = null;
+      let endArea = null;
+      let startAreaPos = null;
+      let endAreaPos = null;
+
+      if (areaNameOrOptions && typeof areaNameOrOptions === 'object' && !Array.isArray(areaNameOrOptions)) {
+        areaName = areaNameOrOptions.areaName || areaNameOrOptions.name || '';
+        areaPos = areaNameOrOptions.areaPos || areaNameOrOptions.targetPos || null;
+        area = areaNameOrOptions.area || null;
+        areaContent = areaNameOrOptions.areaContent || null;
+        startArea = areaNameOrOptions.startArea || null;
+        endArea = areaNameOrOptions.endArea || null;
+        startAreaPos = areaNameOrOptions.startAreaPos || null;
+        endAreaPos = areaNameOrOptions.endAreaPos || null;
+      } else {
+        areaName = areaNameOrOptions || '';
+        areaPos = areaPosMaybe || null;
+      }
+
+      if (Array.isArray(areaPos)) {
+        areaPos = { x: areaPos[0], y: areaPos[1] };
+      }
+      if (Array.isArray(startAreaPos)) {
+        startAreaPos = { x: startAreaPos[0], y: startAreaPos[1] };
+      }
+      if (Array.isArray(endAreaPos)) {
+        endAreaPos = { x: endAreaPos[0], y: endAreaPos[1] };
+      }
+
+      if (!areaPos) {
+        if (area?.points) areaPos = this.getAreaCenterFromPoints(area.points);
+        if (!areaPos && area?.areaContent) {
+          areaPos = this.getAreaCenterFromWkt(area.areaContent);
+        }
+        if (!areaPos && areaContent) areaPos = this.getAreaCenterFromWkt(areaContent);
+      }
+
+      if (!startAreaPos && startArea) {
+        if (startArea.points) startAreaPos = this.getAreaCenterFromPoints(startArea.points);
+        if (!startAreaPos && startArea.areaContent) {
+          startAreaPos = this.getAreaCenterFromWkt(startArea.areaContent);
+        }
+      }
+
+      if (!endAreaPos && endArea) {
+        if (endArea.points) endAreaPos = this.getAreaCenterFromPoints(endArea.points);
+        if (!endAreaPos && endArea.areaContent) {
+          endAreaPos = this.getAreaCenterFromWkt(endArea.areaContent);
+        }
+      }
+
+      let startPos = null;
+      if (Array.isArray(this.currentPos)) {
+        const [x, y] = this.currentPos;
+        if (Number.isFinite(x) && Number.isFinite(y)) {
+          startPos = { x, y };
+        }
+      }
+      if (!startPos && Array.isArray(this.predefinedWaypoints) && this.predefinedWaypoints.length) {
+        startPos = this.predefinedWaypoints[0];
+      }
+
+      let name = areaName || area?.objectName || 'Custom Route';
+      if (!name) {
+        name = startArea?.objectName || endArea?.objectName || 'Custom Route';
+      }
+      let route = [];
+
+      if (startPos && startAreaPos && endAreaPos) {
+        const firstLeg = this.buildLoopRoute(startPos, startAreaPos);
+        const secondLeg = this.buildLoopRoute(startAreaPos, endAreaPos);
+        if (firstLeg.length && secondLeg.length) {
+          route = firstLeg.concat(secondLeg.slice(1));
+        } else {
+          route = firstLeg.length ? firstLeg : secondLeg;
+        }
+      } else if (startPos && areaPos && typeof areaPos.x === 'number' && typeof areaPos.y === 'number') {
+        route = this.buildLoopRoute(startPos, areaPos);
+      }
+
+      if (!route.length) {
+        if (this.areaRoutes && areaName && this.areaRoutes[areaName]) {
+          route = this.areaRoutes[areaName];
+        } else {
+          const result = this.chooseBestRoute();
+          name = result.name;
+          route = result.route;
+        }
+      }
+
+      if (startPos && route.length && !this.isSamePoint(route[0], startPos)) {
+        route = [startPos, ...route];
+      }
+
       if (!route || !route.length) {
         this.$Message && this.$Message.error('固定路线未配置');
         return;
       }
 
       const routeMetersArray = route.map((p) => [p.x, p.y]);
+
+      console.log('[Nav] route (meters):', routeMetersArray);
 
       this.nav.enabled = true;
       this.nav.route = routeMetersArray.map(([x, y]) => this.metersToWeb(x, y));
@@ -423,10 +632,16 @@ export default {
           color: '#1E90FF',
           size: 4
         });
+      } else {
+        console.error('[Nav] guijiLineShow missing');
       }
 
-      this.$Message &&
-        this.$Message.success(name === 'top' ? '已开始导航（上路）' : '已开始导航（下路）');
+      if (this.$Message) {
+        let msg = '已开始导航';
+        if (name === 'top') msg = '已开始导航（上路）';
+        if (name === 'bottom') msg = '已开始导航（下路）';
+        this.$Message.success(msg);
+      }
     },
 
     navUpdateByBle(x, y) {

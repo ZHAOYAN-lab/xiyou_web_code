@@ -243,8 +243,12 @@ export default {
   // =============== 新增：实时导航同步 ===============  
   try {
     // 判断是否为你的手机 beacon（你需确认 beaconType）
-    if (item.beaconType === 1) {
-      this.navUpdateByBle(item.lng, item.lat);
+    if (item.beaconType === 3) {
+      const x = Number(item.beaconX);
+      const y = Number(item.beaconY);
+      if (Number.isFinite(x) && Number.isFinite(y)) {
+        this.navUpdateByBle(x, y);
+      }
     }
   } catch (e) {}
   // ==================================================

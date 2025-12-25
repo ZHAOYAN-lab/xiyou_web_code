@@ -172,7 +172,9 @@ export default {
       collapsed: false,
       pendingCollapsed: false,
       taskTimer: null,
-      flashRedDot: false
+      flashRedDot: false,
+      taskAreaCache: {},
+      fullRouteActive: false
     };
   },
 
@@ -229,6 +231,7 @@ export default {
     /** ⭐⭐⭐ 关键修复点：切换任务必清区域 ⭐⭐⭐ */
     selectPendingTask(task) {
       this.$refs.sll7?.clearTaskArea();
+      this.fullRouteActive = false;
 
       this.currentTask = task;
       this.calcTaskStage(task);
@@ -243,6 +246,20 @@ export default {
       this.taskStage = 'TO_START';
     },
 
+    async getTaskAreaById(areaId) {
+      if (!areaId) return null;
+      if (this.taskAreaCache[areaId]) return this.taskAreaCache[areaId];
+
+      try {
+        const res = await productAreaApi.getProductAreaById(areaId);
+        const area = res?.data || res;
+        if (area) this.taskAreaCache[areaId] = area;
+        return area || null;
+      } catch (e) {
+        return null;
+      }
+    },
+
     async handleShowTaskArea() {
       if (!this.currentTask) return;
 
@@ -251,8 +268,7 @@ export default {
       if (this.currentTask.endAreaId) ids.push(this.currentTask.endAreaId);
 
       for (const id of ids) {
-        const res = await productAreaApi.getProductAreaById(id);
-        const area = res?.data || res;
+        const area = await this.getTaskAreaById(id);
         area && this.$refs.sll7?.showTaskArea(area);
       }
     },
@@ -282,19 +298,21 @@ export default {
 
       if (!this.currentTask) {
         this.nav.enabled = false;
+        this.fullRouteActive = false;
         this.calcTaskStage(null);
         return;
       }
 
-      if (prevTaskId !== this.currentTask.id) {
+      if (prevTaskId !== this.currentTask.id) {
+        this.fullRouteActive = false;
         this.nav.enabled = this.currentTask.status === '执行中';
       } else if (this.currentTask.status !== '执行中') {
         this.nav.enabled = false;
+        this.fullRouteActive = false;
       }
 
       this.calcTaskStage(this.currentTask);
     },
-
     async handleStartNav() {
       if (!this.currentTask) return;
 
@@ -304,19 +322,53 @@ export default {
       }
 
       this.nav.enabled = true;
+      const isToStart = this.taskStage === 'TO_START';
+      const isTwoStage = this.isTwoStageTask(this.currentTask);
+      const startAreaId = this.currentTask.startAreaId;
+      const endAreaId = this.currentTask.endAreaId;
+      const startAreaName = this.currentTask.startAreaName;
+      const endAreaName = this.currentTask.endAreaName;
+
+      if (isTwoStage && isToStart) {
+        const [startArea, endArea] = await Promise.all([
+          this.getTaskAreaById(startAreaId),
+          this.getTaskAreaById(endAreaId)
+        ]);
+
+        if (startArea && endArea) {
+          this.fullRouteActive = true;
+          const fullName = startAreaName && endAreaName
+            ? `${startAreaName} -> ${endAreaName}`
+            : startAreaName || endAreaName || '';
+          this.$refs.sll7?.navStartFixed({
+            areaName: fullName,
+            startArea,
+            endArea
+          });
+          return;
+        }
+      }
+
+      this.fullRouteActive = false;
+      const areaId = isToStart ? startAreaId : endAreaId;
+      const areaName = isToStart ? startAreaName : endAreaName;
+      const area = await this.getTaskAreaById(areaId);
+
       this.$refs.sll7?.navStartFixed({
-        target: this.taskStage === 'TO_START' ? 'START' : 'END'
+        areaName,
+        area
       });
     },
-
     async handleArrived() {
       if (!this.currentTask) return;
 
       if (this.taskStage === 'TO_START') {
         this.currentTask = { ...this.currentTask, reachedStart: true };
         this.taskStage = 'TO_END';
-        this.nav.enabled = false;
-        this.$refs.sll7?.navArrived();
+        if (!this.fullRouteActive) {
+          this.nav.enabled = false;
+          this.$refs.sll7?.navArrived();
+        }
         return;
       }
 
@@ -325,6 +377,7 @@ export default {
         this.currentTask = { ...this.currentTask, status: '已完成' };
         this.taskStage = 'DONE';
         this.nav.enabled = false;
+        this.fullRouteActive = false;
         this.$refs.sll7?.navArrived();
         this.fetchMyTask();
       }

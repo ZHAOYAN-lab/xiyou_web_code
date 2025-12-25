@@ -58,9 +58,9 @@ export default {
      * --------------------------------------------------------- */
 
     /** 开始固定路线导航：自动选上下路线 */
-    navStartFixed() {
+    navStartFixed(...args) {
       const fn = this.$options.mixins[0].methods.navStartFixed;
-      if (typeof fn === "function") return fn.call(this);
+      if (typeof fn === "function") return fn.apply(this, args);
     },
 
     /** 普通开始导航（如果 map.js 实现了的话） */
