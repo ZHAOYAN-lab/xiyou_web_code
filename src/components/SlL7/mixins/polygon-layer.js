@@ -15,12 +15,18 @@ import {
   l7ConvertDataToWeb,
   l7ConvertWebToData
 } from './l7';
-import { DrawPolygon } from '@antv/l7-draw';
+import { DrawPolygon, DrawLine } from '@antv/l7-draw';
 
 export default {
   data() {
     return {
       polygonLayer: {
+        source: [],
+        layer: [],
+        hasLayer: false
+      },
+      /* ✅ Line drawing state */
+      lineLayer: {
         source: [],
         layer: [],
         hasLayer: false
@@ -127,6 +133,7 @@ export default {
      * 二：编辑模式（新增、编辑）
      ***************************************/
     polygonLayerSetEdit(params = []) {
+      this.clearDrawer(); // Ensure only one drawer is active
 
       const validFences = (params || []).filter(f =>
         Array.isArray(f.points) && f.points.length >= 3
@@ -183,6 +190,74 @@ export default {
 
       drawer.enable();
       this.scene.drawer = drawer;
+      this.scene.drawerType = 'polygon';
+    },
+
+    /* ✅ Line Edit Mode */
+    lineLayerSetEdit(params = []) {
+      this.clearDrawer();
+
+      // Assuming params is array of lines, each has points
+      const validLines = (params || []).filter(f =>
+        Array.isArray(f.points) && f.points.length >= 2
+      );
+
+      let backData = validLines.map((line) => ({
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates: line.points.map((item) => {
+            return l7ConvertCMtoL(
+              [
+                ...l7ConvertDataToWeb({
+                  mapMetersPerPixel: this.mapMetersPerPixel,
+                  mapOriginPixelX: this.mapOriginPixelX,
+                  mapOriginPixelY: this.mapOriginPixelY,
+                  x: item.x,
+                  y: item.y
+                })
+              ],
+              this.l7MapWidth
+            );
+          })
+        }
+      }));
+
+      const drawer = new DrawLine(this.scene, {
+        initialData: backData,
+        liveUpdate: true,
+        distanceOptions: {
+          showTotalDistance: true,
+          showDashDistance: true,
+          format: (meters) => {
+            if (meters >= 1000) {
+              return +(meters / l7Scale / 1000).toFixed(2) + 'km';
+            } else {
+              return +(meters / l7Scale).toFixed(2) + 'm';
+            }
+          }
+        }
+      });
+
+      drawer.enable();
+      this.scene.drawer = drawer;
+      this.scene.drawerType = 'line';
+    },
+
+    /* ✅ Helper to clear current drawer */
+    clearDrawer() {
+      if (this.scene && this.scene.drawer) {
+        try {
+          this.scene.drawer.clear();
+          this.scene.drawer.disable();
+          this.scene.drawer.destroy();
+        } catch (e) {
+          // console.warn('Clear drawer error', e);
+        }
+        this.scene.drawer = null;
+        this.scene.drawerType = null;
+      }
     },
 
     /***************************************
@@ -225,6 +300,50 @@ export default {
       });
 
       return points;
+    },
+
+    /* ✅ Get Data for Line */
+    lineLayerGetData() {
+      if (!this.scene || !this.scene.drawer || !this.scene.drawerType === 'line') {
+        return [];
+      }
+
+      // DrawLine uses getLineData? or just getData? 
+      // Usually drawer.getData() returns FeatureCollection
+      // But DrawPolygon has getPolygonData. DrawLine likely has getLineData.
+      // Let's safe check or use getData if available.
+
+      let data = [];
+      if (typeof this.scene.drawer.getLineData === 'function') {
+        data = this.scene.drawer.getLineData();
+      } else if (typeof this.scene.drawer.getData === 'function') {
+        const fc = this.scene.drawer.getData();
+        data = fc.features || [];
+      }
+
+      if (!Array.isArray(data)) return [];
+
+      let l7MapWidth = this.l7MapWidth;
+      let mapMetersPerPixel = this.mapMetersPerPixel;
+      let mapOriginPixelX = this.mapOriginPixelX;
+      let mapOriginPixelY = this.mapOriginPixelY;
+
+      return data.map((item) => {
+        const coordinate = item?.geometry?.coordinates || []; // LineString coordinates is Array of points
+
+        return coordinate.map((v) => {
+          const [lng, lat] = v ?? [];
+          const [x, y] = l7ConvertLtoCM([lng, lat], l7MapWidth);
+          const arr = l7ConvertWebToData({
+            mapMetersPerPixel,
+            mapOriginPixelX,
+            mapOriginPixelY,
+            x,
+            y
+          });
+          return { x: arr[0], y: arr[1] };
+        });
+      });
     },
 
     /***************************************

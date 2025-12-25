@@ -18,10 +18,9 @@
       </FormItem>
 
       <FormItem label="所属类型" prop="belongType">
-        <Select v-model="form.belongType" class="sl-width-300" clearable>
-          <Option value="类型A">类型A</Option>
-          <Option value="类型B">类型B</Option>
-          <Option value="类型C">类型C</Option>
+        <Select v-model="form.belongType" class="sl-width-300" clearable @on-change="handleTypeChange">
+          <Option value="商品区域">商品区域</Option>
+          <Option value="通路区域">通路区域</Option>
         </Select>
       </FormItem>
 
@@ -39,7 +38,7 @@
       </FormItem>
     </Form>
 
-    <div style="margin-top:20px;font-weight:bold;">绘制商品区域</div>
+    <div style="margin-top:20px;font-weight:bold;">绘制{{ form.belongType === '通路区域' ? '通路' : '商品区域' }}</div>
     <div style="border:1px solid #eee;margin-top:10px;height:500px;">
       <sl-l7 v-if="slMapShow" id="product-area-map" ref="sll7" :fullscreen="false"/>
     </div>
@@ -133,7 +132,12 @@ export default {
       this.loadMapAndDraw();
     },
 
-    /* 加载地图 + 回显 polygon */
+    /* 类型切换 */
+    handleTypeChange() {
+       this.loadMapAndDraw(this.form.areaContent);
+    },
+
+    /* 加载地图 + 回显 polygon/line */
     loadMapAndDraw(wkt = null) {
       if (!this.form.mapId) return;
 
@@ -151,13 +155,26 @@ export default {
             sll7.mapInit().then(() => {
               sll7.mapSetBackgroundImage(res);
 
-              /* 必须等待 L7 场景稳定后再绘 polygon */
+              /* 必须等待 L7 场景稳定后再绘 */
               setTimeout(() => {
+                const isLine = this.form.belongType === '通路区域';
+                let pts = [];
                 if (wkt) {
-                  const pts = this.wktToPoints(wkt);
-                  sll7.polygonLayerSetEdit([{ points: pts }]);
+                   pts = this.wktToPoints(wkt);
+                }
+
+                if (isLine) {
+                   if (pts.length > 0) {
+                      sll7.lineLayerSetEdit([{ points: pts }]);
+                   } else {
+                      sll7.lineLayerSetEdit([]);
+                   }
                 } else {
-                  sll7.polygonLayerSetEdit([]);
+                   if (pts.length > 0) {
+                      sll7.polygonLayerSetEdit([{ points: pts }]);
+                   } else {
+                      sll7.polygonLayerSetEdit([]);
+                   }
                 }
               }, 80);
             });
@@ -173,7 +190,12 @@ export default {
     /* WKT → points */
     wktToPoints(wkt) {
       try {
-        let s = wkt.replace("POLYGON((", "").replace("))", "");
+        let s = wkt;
+        if (s.startsWith('POLYGON')) {
+           s = s.replace("POLYGON((", "").replace("))", "");
+        } else if (s.startsWith('LINESTRING')) {
+           s = s.replace("LINESTRING(", "").replace(")", "");
+        }
         return s.split(',').map(pair => {
           let [x, y] = pair.trim().split(' ');
           return { x: parseFloat(x), y: parseFloat(y) };
@@ -200,10 +222,25 @@ export default {
           mapIds: this.form.mapIds
         };
 
-        /* 获取 polygon 点 */
-        const polys = this.$refs.sll7?.polygonLayerGetData() || [];
-        if (polys.length > 0) {
-          payload.areaContent = this.convertToWKT(polys[0]);
+        const isLine = this.form.belongType === '通路区域';
+        let fetchedData = [];
+
+        if (isLine) {
+           fetchedData = this.$refs.sll7?.lineLayerGetData() || [];
+        } else {
+           fetchedData = this.$refs.sll7?.polygonLayerGetData() || [];
+        }
+
+        if (fetchedData.length > 0) {
+          const points = fetchedData[0];
+          if (isLine) {
+             payload.areaContent = this.convertToWKTLine(points);
+             console.log('%c [Passage Path Coordinates] for map.js predefinedWaypoints:', 'color:blue;font-weight:bold');
+             console.log(JSON.stringify(points, null, 2));
+             if (this.$Message) this.$Message.info('通路坐标已打印到控制台，可用于替换 map.js');
+          } else {
+             payload.areaContent = this.convertToWKTPolygon(points);
+          }
         }
 
         const req = this.isEdit ? updateProductArea(payload) : addProductArea(payload);
@@ -216,10 +253,16 @@ export default {
       });
     },
 
-    /* points → WKT */
-    convertToWKT(points) {
+    /* points → WKT Polygon */
+    convertToWKTPolygon(points) {
       const coordStr = points.map(p => `${p.x} ${p.y}`).join(', ');
       return `POLYGON((${coordStr}))`;
+    },
+
+    /* points → WKT LineString */
+    convertToWKTLine(points) {
+      const coordStr = points.map(p => `${p.x} ${p.y}`).join(', ');
+      return `LINESTRING(${coordStr})`;
     }
   }
 };

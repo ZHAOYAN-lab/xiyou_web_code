@@ -6,6 +6,7 @@
  */
 
 import { ImageLayer, Mapbox, Scene, Popup, l7HandleImageMaxRange } from './l7';
+import { getProductAreaList } from '@/api/path/product-area';
 
 // ✅ 任务区域用（保留，不乱删）
 import { PolygonLayer, l7ConvertCMtoL, l7ConvertDataToWeb } from './l7';
@@ -26,6 +27,7 @@ export default {
       l7MapWidth: 0,
       l7ImageMap: null,
       mapCenter: [],
+      mapId: null,
 
       // 坐标换算参数（背景图加载后赋值）
       mapMetersPerPixel: null,
@@ -44,31 +46,21 @@ export default {
         targetPoint: null,
         guideReached: false
       },
-      predefinedWaypoints: [
-        { x: 4.17, y: 0.7 },
-        { x: 3.1, y: 0.7 },
-        { x: 2.02, y: 0.67 },
-        { x: 0.95, y: 0.69 },
-        { x: 0.9, y: 1.77 },
-        { x: 0.9, y: 2.84 },
-        { x: 1.97, y: 2.84 },
-        { x: 3.04, y: 2.84 },
-        { x: 4.12, y: 2.84 },
-        { x: 4.12, y: 1.77 },
-        { x: 4.17, y: 0.7 }
-      ],
+      predefinedWaypoints: [],
 
       /* --------------------- 固定路线定义（米坐标） --------------------- */
       fixedRoutes: {
-        top: [
-          { x: 1.0, y: 3.2 },
-          { x: 3.8, y: 3.2 }
-        ],
-        bottom: [
-          { x: 1.0, y: 1.5 },
-          { x: 3.8, y: 1.5 }
-        ]
+        top: [],
+        bottom: []
       },
+
+      passageRouteLoaded: false,
+      passageRouteLoading: false,
+      passageRouteLoadingMapId: null,
+      passageRouteMapId: null,
+      passageRoutePromise: null,
+      passageRoutes: [],
+      activePassageRouteIndex: -1,
 
       // ✅ 兼容字段：保留不删（你原来是单层）
       taskAreaLayer: null,
@@ -131,6 +123,12 @@ export default {
       this.mapMetersPerPixel = mapMetersPerPixel;
       this.mapOriginPixelX = mapOriginPixelX;
       this.mapOriginPixelY = mapOriginPixelY;
+      const rawMapId = data?.mapId ?? data?.map_id ?? data?.id ?? null;
+      const nextMapId = Number.isFinite(Number(rawMapId)) ? Number(rawMapId) : rawMapId;
+      if (nextMapId !== this.mapId) {
+        this.mapId = nextMapId;
+        this.resetPassageRoute();
+      }
 
       const layer = new ImageLayer({ autoFit: true });
       layer.source(mapImgViewUrl, {
@@ -143,6 +141,7 @@ export default {
       scene.setCenter(center);
       this.l7ImageMap = layer;
       scene.addLayer(layer);
+      this.loadPassageRouteFromDb(this.mapId);
 
       if (this.xinbiao?.data?.length) {
         try {
@@ -188,6 +187,8 @@ export default {
         this.nav.startPoint = null;
         this.nav.targetPoint = null;
         this.nav.guideReached = false;
+        this.resetPassageRoute();
+        this.mapId = null;
       } catch (error) {}
     },
 
@@ -213,6 +214,244 @@ export default {
         .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
 
       return pts;
+    },
+
+    parseWktLinePoints(areaContent) {
+      const raw = String(areaContent || '').trim();
+      if (!raw) return [];
+
+      let cleaned = raw;
+      if (/^LINESTRING/i.test(cleaned)) {
+        cleaned = cleaned.replace(/^LINESTRING\s*\(/i, '').replace(/\)\s*$/i, '');
+      } else if (/^POLYGON/i.test(cleaned)) {
+        cleaned = cleaned.replace(/^POLYGON\s*\(\(/i, '').replace(/\)\)\s*$/i, '');
+      } else {
+        return [];
+      }
+
+      const pts = cleaned
+        .split(',')
+        .map((p) => {
+          const [x, y] = p.trim().split(/\s+/).map(Number);
+          return { x, y };
+        })
+        .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+
+      return pts;
+    },
+
+    normalizePathPoints(points) {
+      const cleaned = [];
+      (points || []).forEach((p) => {
+        const x = Number(Array.isArray(p) ? p[0] : p?.x);
+        const y = Number(Array.isArray(p) ? p[1] : p?.y);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+        const last = cleaned[cleaned.length - 1];
+        if (last && last.x === x && last.y === y) return;
+        cleaned.push({ x, y });
+      });
+
+      if (cleaned.length < 2) return cleaned;
+      return cleaned;
+    },
+
+    isClosedPath(points) {
+      if (!Array.isArray(points) || points.length < 3) return false;
+      return this.isSamePoint(points[0], points[points.length - 1]);
+    },
+
+
+    setActivePassageRoute(route, index = -1) {
+      if (!route || !Array.isArray(route.waypoints) || route.waypoints.length < 2) {
+        this.predefinedWaypoints = [];
+        this.fixedRoutes = { top: [], bottom: [] };
+        this.activePassageRouteIndex = -1;
+        return;
+      }
+
+      this.predefinedWaypoints = route.waypoints;
+      this.fixedRoutes = { top: [], bottom: [] };
+      this.activePassageRouteIndex = Number.isFinite(index) ? index : -1;
+    },
+
+    selectPassageRouteByPosition(pos) {
+      if (!Array.isArray(this.passageRoutes) || this.passageRoutes.length === 0) {
+        this.setActivePassageRoute(null);
+        return null;
+      }
+
+      const px = Array.isArray(pos) ? pos[0] : pos?.x;
+      const py = Array.isArray(pos) ? pos[1] : pos?.y;
+      const obstacles = this.getObstaclePolygons();
+      const hasObstacles = obstacles.length > 0;
+
+      const candidates = this.passageRoutes
+        .map((route, idx) => {
+          const points = route?.waypoints || [];
+          if (points.length < 2) return null;
+          const dist = Number.isFinite(px) && Number.isFinite(py)
+            ? this.distanceToRoute(px, py, points, route?.isClosed)
+            : Infinity;
+          const blocked = hasObstacles ? this.routeIntersectsObstacles(route, obstacles) : false;
+          return { route, idx, dist, blocked };
+        })
+        .filter(Boolean);
+
+      if (!candidates.length) {
+        this.setActivePassageRoute(null);
+        return null;
+      }
+
+      const available = candidates.filter((item) => !item.blocked);
+      let chosen = null;
+
+      if (!Number.isFinite(px) || !Number.isFinite(py)) {
+        chosen = available[0] || candidates[0];
+      } else {
+        const pool = available.length ? available : candidates;
+        chosen = pool.reduce((best, item) => (item.dist < best.dist ? item : best), pool[0]);
+      }
+
+      if (hasObstacles && chosen?.blocked) {
+        console.warn('[Map] all passage routes intersect obstacles, fallback to nearest');
+      }
+
+      this.setActivePassageRoute(chosen.route, chosen.idx);
+      return chosen.route;
+    },
+
+    getAreaMapIds(area) {
+      const raw = area?.mapIds ?? area?.map_ids ?? area?.mapId ?? area?.map_id;
+      if (Array.isArray(raw)) {
+        return raw.map((v) => Number(v)).filter((v) => Number.isFinite(v));
+      }
+      if (typeof raw === 'string') {
+        return raw
+          .split(',')
+          .map((v) => Number(v.trim()))
+          .filter((v) => Number.isFinite(v));
+      }
+      const num = Number(raw);
+      if (Number.isFinite(num)) return [num];
+      return [];
+    },
+
+    areaMatchesMap(area, mapId) {
+      const ids = this.getAreaMapIds(area);
+      const target = Number(mapId);
+      if (!ids.length || !Number.isFinite(target)) return false;
+      return ids.includes(target);
+    },
+
+    resetPassageRoute() {
+      this.predefinedWaypoints = [];
+      this.fixedRoutes = { top: [], bottom: [] };
+      this.passageRouteLoaded = false;
+      this.passageRouteLoadingMapId = null;
+      this.passageRouteMapId = null;
+      this.passageRoutes = [];
+      this.activePassageRouteIndex = -1;
+    },
+
+    async loadPassageRouteFromDb(mapId) {
+      const targetMapId = Number.isFinite(Number(mapId)) ? Number(mapId) : mapId;
+      if (this.passageRouteLoading) {
+        if (this.passageRouteLoadingMapId === targetMapId) {
+          return this.passageRoutePromise;
+        }
+        return this.passageRoutePromise?.finally(() => this.loadPassageRouteFromDb(targetMapId));
+      }
+      if (this.passageRouteLoaded && this.passageRouteMapId === targetMapId) {
+        return this.passageRoutePromise;
+      }
+
+      this.passageRouteLoading = true;
+      this.passageRouteLoadingMapId = targetMapId;
+      const activeMapId = targetMapId;
+
+      this.passageRoutePromise = getProductAreaList()
+        .then((res) => {
+          if (activeMapId !== this.mapId) return;
+
+          const list = res?.list || res?.data || res || [];
+          if (!Array.isArray(list)) {
+            this.predefinedWaypoints = [];
+            this.fixedRoutes = { top: [], bottom: [] };
+            this.passageRoutes = [];
+            this.activePassageRouteIndex = -1;
+            this.passageRouteLoaded = true;
+            this.passageRouteMapId = activeMapId ?? null;
+            return;
+          }
+
+          const passageType = '\u901a\u8def\u533a\u57df';
+          const candidates = list.filter((item) => {
+            const type =
+              item?.belongType ??
+              item?.belong_type ??
+              item?.belongTypeName ??
+              item?.belong_type_name;
+            return type === passageType;
+          });
+
+          let pickList = candidates;
+          if (activeMapId != null) {
+            const byMap = candidates.filter((item) => this.areaMatchesMap(item, activeMapId));
+            if (byMap.length) pickList = byMap;
+          }
+
+          const parsed = pickList
+            .map((item) => {
+              const content = item?.areaContent ?? item?.area_content;
+              return {
+                area: item,
+                points: this.parseWktLinePoints(content)
+              };
+            })
+            .filter((item) => item.points.length >= 2);
+
+          const routes = parsed
+            .map((item) => {
+              const pathPoints = this.normalizePathPoints(item.points);
+              if (pathPoints.length < 2) return null;
+              return {
+                area: item.area,
+                waypoints: pathPoints,
+                isClosed: this.isClosedPath(pathPoints)
+              };
+            })
+            .filter(Boolean);
+
+          this.passageRoutes = routes;
+
+          if (!routes.length) {
+            this.predefinedWaypoints = [];
+            this.fixedRoutes = { top: [], bottom: [] };
+            this.activePassageRouteIndex = -1;
+            this.passageRouteLoaded = true;
+            this.passageRouteMapId = activeMapId ?? null;
+            return;
+          }
+
+          this.selectPassageRouteByPosition(this.currentPos);
+          if (!this.predefinedWaypoints.length) {
+            this.setActivePassageRoute(routes[0], 0);
+          }
+          this.passageRouteLoaded = true;
+          this.passageRouteMapId = activeMapId ?? null;
+        })
+        .catch((error) => {
+          console.warn('[Map] load passage route failed', error);
+          if (activeMapId !== this.mapId) return;
+          this.passageRouteLoaded = false;
+        })
+        .finally(() => {
+          this.passageRouteLoading = false;
+          this.passageRouteLoadingMapId = null;
+          this.passageRoutePromise = null;
+        });
+
+      return this.passageRoutePromise;
     },
 
     /* =========================================================
@@ -411,82 +650,289 @@ export default {
       return { x, y, dist: Math.hypot(px - x, py - y), t };
     },
 
-    distanceToRoute(px, py, route) {
+    distanceToRoute(px, py, route, isClosed = false) {
       if (!route || route.length < 2) return Infinity;
+      let points = route;
+      const closed = Boolean(isClosed);
+      if (closed && this.isSamePoint(points[0], points[points.length - 1])) {
+        points = points.slice(0, -1);
+      }
+      const len = points.length;
+      if (len < 2) return Infinity;
+
+      const segmentCount = closed ? len : len - 1;
       let min = Infinity;
-      for (let i = 0; i < route.length - 1; i++) {
-        const a = route[i];
-        const b = route[i + 1];
+      for (let i = 0; i < segmentCount; i++) {
+        const a = points[i];
+        const b = points[(i + 1) % len];
         const proj = this.projectPointToSegment(px, py, a.x, a.y, b.x, b.y);
         if (proj.dist < min) min = proj.dist;
       }
       return min;
     },
 
-    chooseBestRoute() {
-      const { top, bottom } = this.fixedRoutes;
-      if (!this.currentPos) return { name: 'top', route: top };
-      const [px, py] = this.currentPos;
-      const dTop = this.distanceToRoute(px, py, top);
-      const dBottom = this.distanceToRoute(px, py, bottom);
-      return dTop <= dBottom ? { name: 'top', route: top } : { name: 'bottom', route: bottom };
+    convertMetersPointToLngLat(point) {
+      if (!point || !this.mapMetersPerPixel || !this.l7MapWidth) return null;
+      const x = Array.isArray(point) ? point[0] : point?.x;
+      const y = Array.isArray(point) ? point[1] : point?.y;
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+
+      const web = l7ConvertDataToWeb({
+        mapMetersPerPixel: this.mapMetersPerPixel,
+        mapOriginPixelX: this.mapOriginPixelX,
+        mapOriginPixelY: this.mapOriginPixelY,
+        x,
+        y
+      });
+      return l7ConvertCMtoL(web, this.l7MapWidth);
     },
 
-    getNearestWaypointIndex(target) {
-      let nearestIndex = -1;
-      let minDist = Infinity;
+    getObstaclePolygons() {
+      const sources = this.polygonLayer?.source || [];
+      const polygons = [];
 
-      this.predefinedWaypoints.forEach((wp, index) => {
-        const dist = Math.hypot(target.x - wp.x, target.y - wp.y);
-        if (dist < minDist) {
-          minDist = dist;
-          nearestIndex = index;
+      sources.forEach((source) => {
+        const coords = source?.features?.[0]?.geometry?.coordinates;
+        if (!Array.isArray(coords) || !coords.length) return;
+        const ring = coords[0];
+        if (!Array.isArray(ring) || ring.length < 3) return;
+
+        const cleaned = ring
+          .map((p) => (Array.isArray(p) ? [Number(p[0]), Number(p[1])] : null))
+          .filter((p) => p && Number.isFinite(p[0]) && Number.isFinite(p[1]));
+
+        if (cleaned.length < 3) return;
+        const first = cleaned[0];
+        const last = cleaned[cleaned.length - 1];
+        if (cleaned.length > 3 && first[0] === last[0] && first[1] === last[1]) {
+          cleaned.pop();
+        }
+        if (cleaned.length >= 3) polygons.push(cleaned);
+      });
+
+      return polygons;
+    },
+
+    pointInPolygon(point, polygon) {
+      const x = point[0];
+      const y = point[1];
+      let inside = false;
+
+      for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const xi = polygon[i][0];
+        const yi = polygon[i][1];
+        const xj = polygon[j][0];
+        const yj = polygon[j][1];
+        const intersect = (yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+        if (intersect) inside = !inside;
+      }
+
+      return inside;
+    },
+
+    segmentsIntersect(a, b, c, d) {
+      const eps = 1e-9;
+      const orient = (p, q, r) =>
+        (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]);
+      const onSegment = (p, q, r) =>
+        Math.min(p[0], r[0]) - eps <= q[0] &&
+        q[0] <= Math.max(p[0], r[0]) + eps &&
+        Math.min(p[1], r[1]) - eps <= q[1] &&
+        q[1] <= Math.max(p[1], r[1]) + eps;
+
+      const o1 = orient(a, b, c);
+      const o2 = orient(a, b, d);
+      const o3 = orient(c, d, a);
+      const o4 = orient(c, d, b);
+
+      if (Math.abs(o1) < eps && onSegment(a, c, b)) return true;
+      if (Math.abs(o2) < eps && onSegment(a, d, b)) return true;
+      if (Math.abs(o3) < eps && onSegment(c, a, d)) return true;
+      if (Math.abs(o4) < eps && onSegment(c, b, d)) return true;
+
+      return (o1 > 0 && o2 < 0 || o1 < 0 && o2 > 0) && (o3 > 0 && o4 < 0 || o3 < 0 && o4 > 0);
+    },
+
+    polylineIntersectsPolygon(line, polygon) {
+      if (!Array.isArray(line) || line.length < 2) return false;
+      if (!Array.isArray(polygon) || polygon.length < 3) return false;
+
+      for (let i = 0; i < line.length; i++) {
+        if (this.pointInPolygon(line[i], polygon)) return true;
+      }
+
+      for (let i = 0; i < line.length - 1; i++) {
+        const a = line[i];
+        const b = line[i + 1];
+        for (let j = 0; j < polygon.length; j++) {
+          const c = polygon[j];
+          const d = polygon[(j + 1) % polygon.length];
+          if (this.segmentsIntersect(a, b, c, d)) return true;
+        }
+      }
+
+      return false;
+    },
+
+    routeIntersectsObstacles(route, obstacles) {
+      if (!route || !Array.isArray(route.waypoints) || route.waypoints.length < 2) return false;
+      const polygons = Array.isArray(obstacles) ? obstacles : this.getObstaclePolygons();
+      if (!polygons.length) return false;
+
+      const line = route.waypoints
+        .map((p) => this.convertMetersPointToLngLat(p))
+        .filter((p) => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]));
+
+      if (line.length < 2) return false;
+      return polygons.some((poly) => this.polylineIntersectsPolygon(line, poly));
+    },
+
+    chooseBestRoute() {
+      const active =
+        (Array.isArray(this.passageRoutes) && this.passageRoutes[this.activePassageRouteIndex]) ||
+        (Array.isArray(this.passageRoutes) && this.passageRoutes[0]) ||
+        null;
+      const route = Array.isArray(active?.waypoints)
+        ? active.waypoints
+        : Array.isArray(this.predefinedWaypoints)
+        ? this.predefinedWaypoints
+        : [];
+      return { name: active?.area?.objectName || 'route', route };
+    },
+
+    pathLength(points) {
+      if (!Array.isArray(points) || points.length < 2) return 0;
+      let total = 0;
+      for (let i = 0; i < points.length - 1; i++) {
+        total += Math.hypot(points[i + 1].x - points[i].x, points[i + 1].y - points[i].y);
+      }
+      return total;
+    },
+
+    getNearestPointOnPath(pos, points, isClosed = false) {
+      if (!Array.isArray(points) || points.length < 2) return null;
+      const px = Array.isArray(pos) ? pos[0] : pos?.x;
+      const py = Array.isArray(pos) ? pos[1] : pos?.y;
+      if (!Number.isFinite(px) || !Number.isFinite(py)) return null;
+
+      let basePoints = points;
+      const closed = Boolean(isClosed);
+      if (closed && this.isSamePoint(points[0], points[points.length - 1])) {
+        basePoints = points.slice(0, -1);
+      }
+
+      const len = basePoints.length;
+      if (len < 2) return null;
+
+      const segmentCount = closed ? len : len - 1;
+      let best = null;
+      let min = Infinity;
+
+      for (let i = 0; i < segmentCount; i++) {
+        const a = basePoints[i];
+        const b = basePoints[(i + 1) % len];
+        const proj = this.projectPointToSegment(px, py, a.x, a.y, b.x, b.y);
+        if (proj.dist < min) {
+          min = proj.dist;
+          best = {
+            point: { x: proj.x, y: proj.y },
+            segmentIndex: i,
+            t: proj.t,
+            dist: proj.dist
+          };
+        }
+      }
+
+      return best;
+    },
+
+    getShortestRingPath(points, startIdx, endIdx) {
+      const len = points.length;
+      if (len === 0) return [];
+      if (startIdx === endIdx) return [points[startIdx]];
+
+      const forward = [];
+      let curr = startIdx;
+      while (curr !== endIdx) {
+        forward.push(points[curr]);
+        curr = (curr + 1) % len;
+      }
+      forward.push(points[endIdx]);
+
+      const backward = [];
+      curr = startIdx;
+      while (curr !== endIdx) {
+        backward.push(points[curr]);
+        curr = (curr - 1 + len) % len;
+      }
+      backward.push(points[endIdx]);
+
+      return this.pathLength(forward) <= this.pathLength(backward) ? forward : backward;
+    },
+
+    buildRouteOnPath(startPos, targetPos, route) {
+      if (!startPos || !targetPos) return [];
+      if (!route || !Array.isArray(route.waypoints) || route.waypoints.length < 2) return [];
+
+      const closed = Boolean(route.isClosed);
+      let basePoints = route.waypoints;
+      if (closed && this.isSamePoint(basePoints[0], basePoints[basePoints.length - 1])) {
+        basePoints = basePoints.slice(0, -1);
+      }
+      if (basePoints.length < 2) return [];
+
+      const startProj = this.getNearestPointOnPath(startPos, basePoints, closed);
+      const endProj = this.getNearestPointOnPath(targetPos, basePoints, closed);
+      if (!startProj || !endProj) return [];
+
+      const insertions = [
+        {
+          key: 'start',
+          segmentIndex: startProj.segmentIndex,
+          t: startProj.t,
+          point: startProj.point
+        },
+        {
+          key: 'end',
+          segmentIndex: endProj.segmentIndex,
+          t: endProj.t,
+          point: endProj.point
+        }
+      ];
+
+      const augmented = basePoints.slice();
+      const indices = {};
+      insertions
+        .sort((a, b) => {
+          if (a.segmentIndex === b.segmentIndex) return a.t - b.t;
+          return a.segmentIndex - b.segmentIndex;
+        })
+        .forEach((ins, offset) => {
+          const insertAt = ins.segmentIndex + 1 + offset;
+          augmented.splice(insertAt, 0, ins.point);
+          indices[ins.key] = insertAt;
+        });
+
+      const startIdx = indices.start;
+      const endIdx = indices.end;
+      if (!Number.isFinite(startIdx) || !Number.isFinite(endIdx)) return [];
+
+      let rawPath = [];
+      if (closed) {
+        rawPath = this.getShortestRingPath(augmented, startIdx, endIdx);
+      } else if (startIdx <= endIdx) {
+        rawPath = augmented.slice(startIdx, endIdx + 1);
+      } else {
+        rawPath = augmented.slice(endIdx, startIdx + 1).reverse();
+      }
+
+      const cleaned = [];
+      rawPath.forEach((p) => {
+        if (!cleaned.length || !this.isSamePoint(cleaned[cleaned.length - 1], p)) {
+          cleaned.push(p);
         }
       });
-      return nearestIndex;
-    },
-
-    getShortestLoopPath(idx1, idx2) {
-      const len = this.predefinedWaypoints.length;
-      if (idx1 === idx2) return [this.predefinedWaypoints[idx1]];
-
-      let start = idx1 === len - 1 ? 0 : idx1;
-      let end = idx2 === len - 1 ? 0 : idx2;
-      const loopLen = len - 1;
-
-      let diff = end - start;
-      if (diff < 0) diff += loopLen;
-      const revDiff = loopLen - diff;
-
-      const path = [];
-      const points = this.predefinedWaypoints;
-
-      if (diff <= revDiff) {
-        let curr = start;
-        while (curr !== end) {
-          path.push(points[curr]);
-          curr = (curr + 1) % loopLen;
-        }
-        path.push(points[end]);
-      } else {
-        let curr = start;
-        while (curr !== end) {
-          path.push(points[curr]);
-          curr = (curr - 1 + loopLen) % loopLen;
-        }
-        path.push(points[end]);
-      }
-      return path;
-    },
-    buildLoopRoute(startPos, targetPos) {
-      if (!startPos || !targetPos) return [];
-      if (!Array.isArray(this.predefinedWaypoints) || this.predefinedWaypoints.length < 2) {
-        return [startPos, targetPos];
-      }
-      const startIdx = this.getNearestWaypointIndex(startPos);
-      const endIdx = this.getNearestWaypointIndex(targetPos);
-      const loopSegment = this.getShortestLoopPath(startIdx, endIdx);
-      return [startPos, ...loopSegment, targetPos];
+      return cleaned;
     },
 
     isSamePoint(a, b) {
@@ -500,8 +946,13 @@ export default {
       }
       return ax === bx && ay === by;
     },
-    navStartFixed(areaNameOrOptions, areaPosMaybe) {
+    async navStartFixed(areaNameOrOptions, areaPosMaybe) {
       console.log('[navStartFixed] start navigation');
+
+      if (!this.passageRouteLoaded) {
+        await this.loadPassageRouteFromDb(this.mapId);
+      }
+      this.selectPassageRouteByPosition(this.currentPos);
 
       if (!this.mapMetersPerPixel) {
         this.$Message && this.$Message.error('地图数据加载失败，无法计算路线');
@@ -580,31 +1031,36 @@ export default {
         name = startArea?.objectName || endArea?.objectName || 'Custom Route';
       }
       let route = [];
+      const activeRoute =
+        (Array.isArray(this.passageRoutes) && this.passageRoutes[this.activePassageRouteIndex]) ||
+        (Array.isArray(this.passageRoutes) && this.passageRoutes[0]) ||
+        null;
+
+      if (!activeRoute || !Array.isArray(activeRoute.waypoints) || activeRoute.waypoints.length < 2) {
+        this.$Message && this.$Message.error('未配置通路区域');
+        return;
+      }
+
+      const buildRoute = (from, to) => this.buildRouteOnPath(from, to, activeRoute);
 
       if (startPos && startAreaPos && endAreaPos) {
-        const firstLeg = this.buildLoopRoute(startPos, startAreaPos);
-        const secondLeg = this.buildLoopRoute(startAreaPos, endAreaPos);
+        const firstLeg = buildRoute(startPos, startAreaPos);
+        const secondLeg = buildRoute(startAreaPos, endAreaPos);
         if (firstLeg.length && secondLeg.length) {
-          route = firstLeg.concat(secondLeg.slice(1));
+          route = this.isSamePoint(firstLeg[firstLeg.length - 1], secondLeg[0])
+            ? firstLeg.concat(secondLeg.slice(1))
+            : firstLeg.concat(secondLeg);
         } else {
           route = firstLeg.length ? firstLeg : secondLeg;
         }
       } else if (startPos && areaPos && typeof areaPos.x === 'number' && typeof areaPos.y === 'number') {
-        route = this.buildLoopRoute(startPos, areaPos);
+        route = buildRoute(startPos, areaPos);
       }
 
       if (!route.length) {
-        if (this.areaRoutes && areaName && this.areaRoutes[areaName]) {
-          route = this.areaRoutes[areaName];
-        } else {
-          const result = this.chooseBestRoute();
-          name = result.name;
-          route = result.route;
-        }
-      }
-
-      if (startPos && route.length && !this.isSamePoint(route[0], startPos)) {
-        route = [startPos, ...route];
+        const result = this.chooseBestRoute();
+        name = result.name;
+        route = result.route;
       }
 
       if (!route || !route.length) {
