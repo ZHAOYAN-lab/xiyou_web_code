@@ -30,7 +30,7 @@
           {{ row.remark || '-' }}
         </template>
 
-        <!-- ✅ 路线（三段展示，最终版） -->
+        <!-- 路线 -->
         <template slot="route" slot-scope="{ row }">
           <template v-if="row.startFromCurrent === 1">
             <span>当前位置</span>
@@ -39,7 +39,6 @@
             </template>
             → <span>{{ row.endAreaName }}</span>
           </template>
-
           <template v-else>
             <span>{{ row.startAreaName }}</span>
             → <span>{{ row.endAreaName }}</span>
@@ -53,11 +52,7 @@
         </template>
 
         <template slot="action" slot-scope="{ row }">
-          <Tooltip
-            v-if="isLocked(row)"
-            content="已派发，需先取消"
-            placement="top"
-          >
+          <Tooltip v-if="isLocked(row)" content="已派发，需先取消">
             <Button type="primary" size="small" disabled>派发</Button>
           </Tooltip>
 
@@ -71,19 +66,15 @@
           </Button>
 
           <Button
+            v-if="row.status === '已派发'"
             type="warning"
             size="small"
-            v-if="row.status === '已派发'"
             @click="handleCancelDispatch(row)"
           >
             取消
           </Button>
 
-          <Tooltip
-            v-if="row.status === '执行中'"
-            content="任务执行中，禁止删除"
-            placement="top"
-          >
+          <Tooltip v-if="row.status === '执行中'" content="任务执行中，禁止删除">
             <Button type="error" size="small" disabled>删除</Button>
           </Tooltip>
 
@@ -116,7 +107,7 @@
         :rules="addRules"
         :label-width="120"
       >
-        <FormItem label="对象名称" prop="objectName">
+        <FormItem label="任务名称" prop="objectName">
           <Input v-model="addForm.objectName" />
         </FormItem>
 
@@ -128,17 +119,12 @@
           </Select>
         </FormItem>
 
-        <FormItem label="备注" prop="remark">
-          <Input v-model="addForm.remark" type="textarea" :rows="3" />
-        </FormItem>
-
         <!-- 开始区域（仅送货） -->
-        <FormItem
-          v-if="showStartArea"
-          label="开始区域"
-          prop="startAreaId"
-        >
-          <Select v-model="addForm.startAreaId">
+        <FormItem v-if="showStartArea" label="开始区域" prop="startAreaId">
+          <Select
+            v-model="addForm.startAreaId"
+            :placeholder="startAreaPlaceholder"
+          >
             <Option
               v-for="item in areaList"
               :key="item.areaId"
@@ -149,6 +135,7 @@
           </Select>
         </FormItem>
 
+        <!-- 结束区域 -->
         <FormItem label="结束区域" prop="endAreaId">
           <Select v-model="addForm.endAreaId">
             <Option
@@ -159,6 +146,31 @@
               {{ item.objectName }}
             </Option>
           </Select>
+        </FormItem>
+
+        <!-- 开始时间 -->
+        <FormItem label="开始时间" prop="startTime">
+          <DatePicker
+            v-model="addForm.startTime"
+            type="datetime"
+            style="width: 100%;"
+            placeholder="请选择开始时间"
+          />
+        </FormItem>
+
+        <!-- 结束时间 -->
+        <FormItem label="结束时间" prop="endTime">
+          <DatePicker
+            v-model="addForm.endTime"
+            type="datetime"
+            style="width: 100%;"
+            placeholder="请选择结束时间"
+          />
+        </FormItem>
+
+        <!-- 备注（已移到最下面） -->
+        <FormItem label="备注" prop="remark">
+          <Input v-model="addForm.remark" type="textarea" :rows="3" />
         </FormItem>
       </Form>
 
@@ -176,11 +188,7 @@
         </FormItem>
 
         <FormItem label="备注">
-          <Input
-            :value="currentDispatchRow?.remark"
-            type="textarea"
-            disabled
-          />
+          <Input :value="currentDispatchRow?.remark" type="textarea" disabled />
         </FormItem>
 
         <FormItem label="选择员工">
@@ -234,20 +242,19 @@ export default {
         startAreaId: null,
         startAreaName: '',
         endAreaId: null,
-        endAreaName: ''
+        endAreaName: '',
+        startTime: null,
+        endTime: null
       },
 
       addRules: {
         objectName: [{ required: true, message: '请输入对象名称' }],
         taskType: [{ required: true, message: '请选择类型' }],
-        remark: [{ required: true, message: '请输入备注' }],
         endAreaId: [{ required: true, message: '请选择结束区域' }]
       },
 
       currentDispatchRow: null,
-      dispatchForm: {
-        employees: []
-      },
+      dispatchForm: { employees: [] },
 
       columns: [
         { type: 'index', width: 60, align: 'center' },
@@ -265,23 +272,18 @@ export default {
     showStartArea() {
       return this.addForm.taskType === '送货'
     },
-
+    startAreaPlaceholder() {
+      return this.addForm.taskType === '送货'
+        ? '从当前位置开始'
+        : '请选择'
+    },
     dispatchRouteText() {
       if (!this.currentDispatchRow) return ''
-
       const row = this.currentDispatchRow
       const parts = []
-
-      if (row.startFromCurrent === 1) {
-        parts.push('当前位置')
-      }
-
-      if (row.startAreaName) {
-        parts.push(row.startAreaName)
-      }
-
+      if (row.startFromCurrent === 1) parts.push('当前位置')
+      if (row.startAreaName) parts.push(row.startAreaName)
       parts.push(row.endAreaName)
-
       return parts.join(' → ')
     }
   },
@@ -299,33 +301,27 @@ export default {
       if (type === '送货') return 'purple'
       return 'default'
     },
-
     isLocked(row) {
       return row.status === '已派发' || row.status === '执行中'
     },
-
     rowClassName(row) {
       return this.isLocked(row) ? 'row-disabled' : ''
     },
-
     getStatusColor(status) {
       if (status === '已派发') return 'orange'
       if (status === '执行中') return 'green'
       return 'default'
     },
-
     fetchAreaList() {
       productAreaApi.getProductAreaList().then(res => {
         this.areaList = res?.list || res || []
       })
     },
-
     fetchEmployeeList() {
       userApi.getUserSimpleList().then(res => {
         this.employeeList = res?.detail || res || []
       })
     },
-
     fetchData() {
       this.tableLoading = true
       taskApi.taskGetList({ page: this.page, size: this.pageSize })
@@ -337,12 +333,10 @@ export default {
           this.tableLoading = false
         })
     },
-
     handlePageChange(p) {
       this.page = p
       this.fetchData()
     },
-
     handleOpenAdd() {
       this.addForm = {
         objectName: '',
@@ -352,21 +346,18 @@ export default {
         startAreaId: null,
         startAreaName: '',
         endAreaId: null,
-        endAreaName: ''
+        endAreaName: '',
+        startTime: null,
+        endTime: null
       }
       this.addDialogVisible = true
     },
-
     submitAdd() {
       this.$refs.addFormRef.validate(valid => {
         if (!valid) return
 
-        const startArea = this.areaList.find(
-          a => a.areaId === this.addForm.startAreaId
-        )
-        const endArea = this.areaList.find(
-          a => a.areaId === this.addForm.endAreaId
-        )
+        const startArea = this.areaList.find(a => a.areaId === this.addForm.startAreaId)
+        const endArea = this.areaList.find(a => a.areaId === this.addForm.endAreaId)
 
         this.addForm.startAreaName = startArea?.objectName || ''
         this.addForm.endAreaName = endArea?.objectName || ''
@@ -378,19 +369,16 @@ export default {
         })
       })
     },
-
     handleOpenDispatch(row) {
       this.currentDispatchRow = row
       this.dispatchForm.employees = []
       this.dispatchDialogVisible = true
     },
-
     submitDispatch() {
       if (!this.dispatchForm.employees.length) {
         this.$Message.error('请至少选择一名员工')
         return
       }
-
       taskApi.taskDispatch({
         taskId: this.currentDispatchRow.id,
         employees: this.dispatchForm.employees
@@ -400,14 +388,12 @@ export default {
         this.fetchData()
       })
     },
-
     handleCancelDispatch(row) {
       taskApi.taskCancel({ taskId: row.id }).then(() => {
         this.$Message.success('已取消任务')
         this.fetchData()
       })
     },
-
     handleDelete(row) {
       this.$Modal.confirm({
         title: '确认删除？',

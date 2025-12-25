@@ -1,7 +1,7 @@
 <template>
   <Modal
     v-model="visible"
-    :title="isEdit ? '编辑商品区域' : '新增商品区域'"
+    :title="isEdit ? '编辑区域' : '新增区域'"
     :width="900"
     :mask-closable="false"
   >

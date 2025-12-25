@@ -3,7 +3,7 @@
     <Card :bordered="false" dis-hover>
 
       <div slot="title" class="header">
-        <span class="title">商品区域设置</span>
+        <span class="title">区域管理</span>
         <Button type="primary" icon="md-add" @click="handleAdd">新增区域</Button>
       </div>
 

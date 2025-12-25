@@ -198,7 +198,7 @@ export default [
       {
         path: 'product_area',
         name: 'product_area',
-        meta: { title: '商品区域设置', icon: 'md-apps' },
+        meta: { title: '区域管理', icon: 'md-apps' },
         component: () => import('@/views/system-set/product-area/index.vue')
       }
     ]
