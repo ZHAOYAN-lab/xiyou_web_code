@@ -200,6 +200,12 @@ export default [
         name: 'product_area',
         meta: { title: '区域管理', icon: 'md-apps' },
         component: () => import('@/views/system-set/product-area/index.vue')
+      },
+      {
+        path: 'account_create',
+        name: 'account_create',
+        meta: { title: '账号管理', icon: 'md-person-add' },
+        component: () => import('@/views/system-set/account-create')
       }
     ]
   },
