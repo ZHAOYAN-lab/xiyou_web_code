@@ -28,6 +28,36 @@ export default {
     });
   },
   methods: {
+    clearAllAppCache() {
+      catchToken.remove();
+      try {
+        window.localStorage && window.localStorage.clear();
+      } catch (e) {}
+      try {
+        window.sessionStorage && window.sessionStorage.clear();
+      } catch (e) {}
+      try {
+        if (document && document.cookie) {
+          document.cookie.split(';').forEach((item) => {
+            const key = item.split('=')[0].trim();
+            if (!key) return;
+            document.cookie = `${key}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+          });
+        }
+      } catch (e) {}
+
+      if (this.$store && this.$store.commit) {
+        if (this.$store._mutations?.resetUserInfo) {
+          this.$store.commit('resetUserInfo');
+        } else {
+          this.$store.commit('setHasGetInfo', {
+            status: false,
+            userInfo: { userName: '', username: '' }
+          });
+          this.$store.commit('setAccess', []);
+        }
+      }
+    },
     setDateTime() {
       // console.log('123123123');
 
@@ -66,8 +96,9 @@ export default {
     logoutMethod() {
       // 跳转到登录页
 
-      catchToken.remove();
-      this.$router.push('/login');
+      this.clearAllAppCache();
+      const loginHref = this.$router?.resolve({ name: 'login' })?.href || '/login';
+      window.location.replace(loginHref);
     }
   }
 };

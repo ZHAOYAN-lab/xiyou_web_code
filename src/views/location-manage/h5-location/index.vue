@@ -205,14 +205,17 @@ export default {
     },
 
     jizhanOnChange(v) {
+      this.l7.switch.jz = v;
       this.$refs.sll7?.jizhanToggle(v);
     },
 
     xinbiaoOnChange(v) {
+      this.l7.switch.xb = v;
       this.$refs.sll7?.xinbiaoToggle(v);
     },
 
     weilanOnchange(v) {
+      this.l7.switch.wl = v;
       this.$refs.sll7?.polygonLayerToggle(v);
     },
 
@@ -395,17 +398,21 @@ export default {
   position: absolute;
   top: 84px;
   left: 12px;
-  z-index: 3000;
+  z-index: 80;
   background: rgba(255, 255, 255, 0.96);
   border-radius: 8px;
   padding: 10px;
-  width: 140px;
+  width: 18vw;
+  min-width: 140px;
+  max-width: 220px;
   font-size: 12px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
 }
 
 .pending-task-box.collapsed {
-  width: 120px;
+  width: 14vw;
+  min-width: 120px;
+  max-width: 180px;
 }
 
 .pending-task-box .title {
@@ -449,17 +456,21 @@ export default {
   position: absolute;
   top: 84px;
   right: 12px;
-  z-index: 3000;
+  z-index: 80;
   background: rgba(255, 255, 255, 0.96);
   border-radius: 8px;
   padding: 10px;
-  width: 220px;
+  width: 24vw;
+  min-width: 220px;
+  max-width: 320px;
   font-size: 12px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
 }
 
 .task-info-box.collapsed {
-  width: 120px;
+  width: 14vw;
+  min-width: 120px;
+  max-width: 180px;
 }
 
 .task-info-box .title {

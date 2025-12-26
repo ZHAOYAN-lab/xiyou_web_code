@@ -1,3 +1,7 @@
+const USER_BEACON_MAC_MAP = {
+  worker2: '43544d415678'
+};
+
 export default {
   data() {
     return {
@@ -5,7 +9,7 @@ export default {
         show: false,
         // 显示隐藏开关
         switch: {
-          jz: true,
+          jz: false,
           xb: true,
           wl: false
         }
@@ -59,11 +63,14 @@ export default {
 
             // 底图
             sll7.mapSetBackgroundImage(data);
-            // 基站
-            sll7.jizhanSetData(data);
+            // 基站（H5 默认不显示）
+            if (this.l7.switch.jz) {
+              sll7.jizhanSetData(data);
+            }
             //围栏(不可编辑)
             this.fenceManageGetDataByMapId();
 
+            this.bindSelfMqttHandler(sll7);
             sll7.createConnection();
             setTimeout(() => {
               // mqtt
@@ -94,6 +101,64 @@ export default {
             }, [])
           );
         });
+    },
+
+    bindSelfMqttHandler(sll7) {
+      if (!sll7) return;
+
+      const handler = (payload) => {
+        const filtered = this.filterSelfMqttPayload(payload);
+        if (filtered) {
+          sll7.xinbiaoSetData(filtered);
+        }
+      };
+
+      sll7.mqttOnMessage = this.$pub?.slThrottle
+        ? this.$pub.slThrottle(handler, 1000)
+        : handler;
+    },
+
+    filterSelfMqttPayload(payload) {
+      const list = Array.isArray(payload?.data)
+        ? payload.data
+        : Array.isArray(payload)
+        ? payload
+        : [];
+      const mac = this.getSelfBeaconMac();
+
+      if (!mac) {
+        return { data: list };
+      }
+
+      const target = this.normalizeMac(mac);
+      return {
+        data: list.filter((item) => {
+          const itemMac = item?.beaconMac || item?.beacon_mac || item?.mac;
+          if (!itemMac) return false;
+          return this.normalizeMac(itemMac) === target;
+        })
+      };
+    },
+
+    normalizeMac(value) {
+      if (!value) return '';
+      return String(value)
+        .toLowerCase()
+        .replace(/[^0-9a-f]/g, '');
+    },
+
+    getSelfBeaconMac() {
+      const user = this.$store?.state?.userInfo?.userMsg || {};
+      const task = this.currentTask || {};
+      const username = user.userName || user.username || '';
+      return (
+        USER_BEACON_MAC_MAP[username] ||
+        user.beaconMac ||
+        user.beacon_mac ||
+        task.beaconMac ||
+        task.beacon_mac ||
+        ''
+      );
     }
   }
 };

@@ -5,15 +5,18 @@
 import { catchToken } from '@/lib/js/cache';
 import login from '@/api/path/login';
 
+const getDefaultUserMsg = () => ({
+  // avatar: '',
+  userName: '',
+  username: ''
+});
+
 export default {
   state: {
     token: catchToken.get(),
     hasGetInfo: false,
     access: [],
-    userMsg: {
-      // avatar: '',
-      userName: ''
-    }
+    userMsg: getDefaultUserMsg()
   },
   mutations: {
     setAccess(state, access) {
@@ -26,6 +29,12 @@ export default {
     setHasGetInfo(state, data) {
       state.hasGetInfo = data.status;
       state.userMsg = data.userInfo;
+    },
+    resetUserInfo(state) {
+      state.token = '';
+      state.hasGetInfo = false;
+      state.access = [];
+      state.userMsg = getDefaultUserMsg();
     }
   },
   getters: {},

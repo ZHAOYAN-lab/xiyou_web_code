@@ -14,10 +14,13 @@
           <Cell :title="$t('base.date')">
             <p slot="extra">{{ mixinHeader.dateTime }}</p>
           </Cell>
-
-
-
-          
+          <Cell :title="$t('home.card1.c')">
+            <iSwitch
+              slot="extra"
+              v-model="drawer.switch.wl"
+              @on-change="l7MapTogglePolygonLayer"
+            />
+          </Cell>
 
           <Cell :title="$t('base.map')">
             <div slot="extra" class="sl-width-100">
@@ -52,7 +55,7 @@ export default {
         show: false,
         // 显示隐藏开关
         switch: {
-          jz: true,
+          jz: false,
           xb: true,
           wl: false
         }

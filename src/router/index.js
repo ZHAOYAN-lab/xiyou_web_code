@@ -30,13 +30,22 @@ router.beforeEach((to, from, next) => {
   const token = catchToken.get();
   const mobile = slBrowserDevice().mobile;
 
-  // ★★★ 关键：当前登录用户名（从 store 或 token 中取）
-  const username =
-    store.state.userInfo?.userName ||
-    store.state.userInfo?.username ||
-    '';
+  const getUsername = () => {
+    const userMsg = store.state.userInfo?.userMsg || {};
+    return (
+      userMsg.userName ||
+      userMsg.username ||
+      store.state.userInfo?.userName ||
+      store.state.userInfo?.username ||
+      ''
+    );
+  };
 
-  const isWorker = username === 'worker1';
+  // ★★★ 关键：当前登录用户名（从 store 或 token 中取）
+  const username = getUsername();
+
+  const isAdmin = String(username).toLowerCase() === 'admin';
+  const forceH5 = !isAdmin;
 
   // ========== 未登录 ==========
   if (!token && to.name !== loginPage) {
@@ -51,8 +60,8 @@ router.beforeEach((to, from, next) => {
 
   // ========== 已登录 ==========
   if (token && to.name === loginPage) {
-    // worker1 登录后强制进 h5
-    if (isWorker) {
+    // 非 admin 登录后强制进 h5
+    if (forceH5) {
       next({ name: mobileHome });
     } else {
       next({ name: mobile ? mobileHome : homeName });
@@ -62,8 +71,8 @@ router.beforeEach((to, from, next) => {
 
   // ========== 已登录 + 已拉用户信息 ==========
   if (store.state.userInfo.hasGetInfo) {
-    // ★★★ worker1：只能访问 h5_location
-    if (isWorker && to.name !== mobileHome) {
+    // ★★★ 非 admin：只能访问 h5_location
+    if (forceH5 && to.name !== mobileHome) {
       next({ name: mobileHome });
       return;
     }
@@ -81,14 +90,12 @@ router.beforeEach((to, from, next) => {
   store
     .dispatch('getUserInfo')
     .then(() => {
-      const username =
-        store.state.userInfo?.userName ||
-        store.state.userInfo?.username ||
-        '';
+      const username = getUsername();
 
-      const isWorker = username === 'worker1';
+      const isAdmin = String(username).toLowerCase() === 'admin';
+      const forceH5 = !isAdmin;
 
-      if (isWorker && to.name !== mobileHome) {
+      if (forceH5 && to.name !== mobileHome) {
         next({ name: mobileHome });
         return;
       }
