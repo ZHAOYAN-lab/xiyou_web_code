@@ -192,14 +192,14 @@ export default {
       sll7.guijiLineShow({
         key: "walked",
         color: "#999999",
-        size: 4,
+        size: 2,
         data: this.walkedRoute
       });
 
       sll7.guijiLineShow({
         key: "remain",
-        color: "#0080FF",
-        size: 6,
+        color: "#37393a",
+        size: 3,
         data: this.remainRoute
       });
     },

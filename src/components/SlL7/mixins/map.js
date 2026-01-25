@@ -1085,8 +1085,8 @@ export default {
         this.guijiLineShow({
           key: 'route',
           data: routeMetersArray,
-          color: '#1E90FF',
-          size: 4
+          color: '#37393a',
+          size: 2
         });
       } else {
         console.error('[Nav] guijiLineShow missing');

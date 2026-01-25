@@ -218,21 +218,15 @@ export default {
       }
 
       const scene = this.scene;
-      const lineSource = [];
+      const pointSource = [];
+      const dotSize = Number.isFinite(Number(size)) ? Number(size) : 3;
+      const dotSpacingPx = Math.max(10, Math.round(dotSize * 4));
+      const metersPerPixel = Number(this.mapMetersPerPixel);
+      const spacingMeters = Number.isFinite(metersPerPixel) && metersPerPixel > 0
+        ? dotSpacingPx * metersPerPixel
+        : 0;
 
-      // 生成连续的 lineSource
-      for (let i = 0; i < data.length - 1; i++) {
-        // ★ 增强容错：data[i] 可能是数组 [x,y] 也可能是对象 {x,y}
-        let startRaw = data[i];
-        let endRaw = data[i + 1];
-
-        // 统一转为数组 [x, y]
-        const [x, y] = Array.isArray(startRaw) ? startRaw : [startRaw.x, startRaw.y];
-        const [x1, y1] = Array.isArray(endRaw) ? endRaw : [endRaw.x, endRaw.y];
-
-        if (x == null || y == null || x1 == null || y1 == null) continue;
-
-        // 坐标转换：米 -> Pixel -> L7 LngLat
+      const pushPoint = (x, y) => {
         const [lng, lat] = l7ConvertCMtoL(
           l7ConvertDataToWeb({
             mapMetersPerPixel: this.mapMetersPerPixel,
@@ -243,20 +237,80 @@ export default {
           }),
           this.l7MapWidth
         );
+        pointSource.push({ lng, lat });
+      };
 
-        const [lng1, lat1] = l7ConvertCMtoL(
-          l7ConvertDataToWeb({
-            mapMetersPerPixel: this.mapMetersPerPixel,
-            mapOriginPixelX: this.mapOriginPixelX,
-            mapOriginPixelY: this.mapOriginPixelY,
-            x: x1,
-            y: y1
-          }),
-          this.l7MapWidth
-        );
+      const rawPoints = [];
+      data.forEach((item) => {
+        const [x, y] = Array.isArray(item) ? item : [item.x, item.y];
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+        if (rawPoints.length) {
+          const last = rawPoints[rawPoints.length - 1];
+          if (last.x == x && last.y == y) return;
+        }
+        rawPoints.push({ x, y });
+      });
 
-        lineSource.push({ lng, lat, lng1, lat1 });
+      if (rawPoints.length < 2) return;
+
+      let totalLength = 0;
+      for (let i = 1; i < rawPoints.length; i++) {
+        const prev = rawPoints[i - 1];
+        const curr = rawPoints[i];
+        const dx = curr.x - prev.x;
+        const dy = curr.y - prev.y;
+        const segLen = Math.hypot(dx, dy);
+        if (!Number.isFinite(segLen) || segLen == 0) continue;
+        totalLength += segLen;
       }
+
+      if (!(spacingMeters > 0) || totalLength == 0) {
+        rawPoints.forEach((p) => {
+          pushPoint(p.x, p.y);
+        });
+      } else {
+        const count = Math.max(2, Math.round(totalLength / spacingMeters) + 1);
+        const actualSpacing = totalLength / (count - 1);
+
+        let lastPushed = null;
+        const pushPointMeter = (x, y) => {
+          pushPoint(x, y);
+          lastPushed = { x, y };
+        };
+
+        let prev = rawPoints[0];
+        pushPointMeter(prev.x, prev.y);
+
+        let traveled = 0;
+        let target = actualSpacing;
+
+        for (let i = 1; i < rawPoints.length; i++) {
+          const curr = rawPoints[i];
+          const dx = curr.x - prev.x;
+          const dy = curr.y - prev.y;
+          const segLen = Math.hypot(dx, dy);
+          if (!Number.isFinite(segLen) || segLen == 0) {
+            prev = curr;
+            continue;
+          }
+
+          while (traveled + segLen >= target) {
+            const t = (target - traveled) / segLen;
+            pushPointMeter(prev.x + dx * t, prev.y + dy * t);
+            target += actualSpacing;
+          }
+
+          traveled += segLen;
+          prev = curr;
+        }
+
+        const last = rawPoints[rawPoints.length - 1];
+        if (!lastPushed || Math.hypot(last.x - lastPushed.x, last.y - lastPushed.y) > 1e-3) {
+          pushPoint(last.x, last.y);
+        }
+      }
+
+      if (!pointSource.length) return;
 
       // 删除旧图层
       if (this.navLayers[key]) {
@@ -266,21 +320,18 @@ export default {
       }
 
       // ★ zIndex: 20 确保显示在最上层
-      const layer = new LineLayer({ zIndex: 20 })
-        .source(lineSource, {
+      const layer = new PointLayer({ zIndex: 20 })
+        .source(pointSource, {
           parser: {
             type: 'json',
             x: 'lng',
-            y: 'lat',
-            x1: 'lng1',
-            y1: 'lat1'
+            y: 'lat'
           }
         })
-        .shape('line')
-        .size(size || 3)
-        .color(color || '#1E90FF')
+        .shape('circle')
+        .size(dotSize)
+        .color(color || '#2D9CDB')
         .style({
-          lineType: 'solid',
           opacity: 1
         });
 
