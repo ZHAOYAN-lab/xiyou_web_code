@@ -75,9 +75,9 @@ export default {
             } else {
               // console.log('不存在');
               this.mqttOnMessage = this.$pub.slThrottle((data) => {
-                console.log('mqtt 数据使用');
+                // console.log('mqtt 数据使用');
                 this.xinbiaoSetData(data);
-              }, 1000);
+              }, 50);
               this.mqttOnMessage(data);
             }
           });

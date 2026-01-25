@@ -55,9 +55,11 @@ export default {
 
         // 新增：动画配置
         animation: {
-          duration: 900, // 动画持续时间（毫秒）
-          timers: {}, // 存储每个信标的动画定时器
-          positions: {} // 存储每个信标的当前位置
+          duration: 1000, // fallback duration (ms) when interval is unknown
+          useEasing: false, // true: easeOutCubic, false: linear follow
+          timers: {}, // per-beacon animation frame id
+          positions: {}, // per-beacon latest position
+          lastUpdateAt: {} // per-beacon last update time
         }
       }
     };
@@ -80,6 +82,8 @@ export default {
         }
       });
       this.xinbiao.animation.timers = {};
+      this.xinbiao.animation.positions = {};
+      this.xinbiao.animation.lastUpdateAt = {};
     },
 
     // 线性插值函数
@@ -94,47 +98,65 @@ export default {
 
     // 平滑更新信标位置
     xinbiaoSmoothUpdate(beaconId, layer, fromPos, toPos) {
-      const startTime = Date.now();
-      const duration = this.xinbiao.animation.duration;
-      
-      const animate = () => {
-        const elapsed = Date.now() - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        const eased = this.easeOutCubic(progress);
+      const now = (typeof performance !== 'undefined' && performance.now)
+        ? performance.now()
+        : Date.now();
+      const lastAt = this.xinbiao.animation.lastUpdateAt[beaconId];
+      this.xinbiao.animation.lastUpdateAt[beaconId] = now;
 
-        // 计算当前位置
-        const currentLng = this.lerp(fromPos.lng, toPos.lng, eased);
-        const currentLat = this.lerp(fromPos.lat, toPos.lat, eased);
+      const duration = Math.max(
+        0,
+        lastAt ? (now - lastAt) : this.xinbiao.animation.duration
+      );
+      const startPos = this.xinbiao.animation.positions[beaconId] || fromPos;
 
-        // 更新图层数据
-        const newData = [{
+      const setLayerPos = (lng, lat) => {
+        layer.setData([{
           ...toPos.feature,
-          lng: currentLng,
-          lat: currentLat
-        }];
+          lng,
+          lat
+        }]);
+        // keep latest position for follow updates
+        this.xinbiao.animation.positions[beaconId] = { lng, lat };
+      };
 
-        layer.setData(newData);
+      if (duration == 0) {
+        setLayerPos(toPos.lng, toPos.lat);
+        return;
+      }
 
-        // 继续动画或结束
+      const startTime = now;
+
+      const animate = (ts) => {
+        const currentTime = (typeof ts === 'number')
+          ? ts
+          : ((typeof performance !== 'undefined' && performance.now)
+            ? performance.now()
+            : Date.now());
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = this.xinbiao.animation.useEasing
+          ? this.easeOutCubic(progress)
+          : progress;
+
+        const currentLng = this.lerp(startPos.lng, toPos.lng, eased);
+        const currentLat = this.lerp(startPos.lat, toPos.lat, eased);
+
+        setLayerPos(currentLng, currentLat);
+
         if (progress < 1) {
           this.xinbiao.animation.timers[beaconId] = requestAnimationFrame(animate);
         } else {
-          // 动画结束，保存最终位置
-          this.xinbiao.animation.positions[beaconId] = {
-            lng: toPos.lng,
-            lat: toPos.lat
-          };
           delete this.xinbiao.animation.timers[beaconId];
         }
       };
 
-      // 取消之前的动画
+      // cancel previous animation frame to prevent lag
       if (this.xinbiao.animation.timers[beaconId]) {
         cancelAnimationFrame(this.xinbiao.animation.timers[beaconId]);
       }
 
-      // 开始新动画
-      animate();
+      animate(now);
     },
 
     // 画信标
@@ -262,6 +284,7 @@ export default {
           scene.removeLayer(layer);
           delete this.xinbiao.animation.positions[layer._beaconId];
           delete this.xinbiao.animation.timers[layer._beaconId];
+          delete this.xinbiao.animation.lastUpdateAt[layer._beaconId];
           return false;
         }
         return true;
