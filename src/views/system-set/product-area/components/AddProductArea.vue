@@ -1,36 +1,36 @@
 <template>
   <Modal
     v-model="visible"
-    :title="isEdit ? '编辑区域' : '新增区域'"
+    :title="isEdit ? $t('productArea.editArea') : $t('productArea.addArea')"
     :width="900"
     :mask-closable="false"
   >
     <Form ref="formRef" :model="form" :rules="rules" :label-width="100">
 
-      <FormItem label="地图" prop="mapId">
+      <FormItem :label="$t('productArea.form.map')" prop="mapId">
         <div class="sl-width-300">
           <sl-map-cascader ref="mapCascader" @onChange="mapOnChange" />
         </div>
       </FormItem>
 
-      <FormItem label="对象名称" prop="objectName">
+      <FormItem :label="$t('productArea.form.objectName')" prop="objectName">
         <Input v-model="form.objectName" class="sl-width-300" clearable />
       </FormItem>
 
-      <FormItem label="所属类型" prop="belongType">
+      <FormItem :label="$t('productArea.form.belongType')" prop="belongType">
         <Select v-model="form.belongType" class="sl-width-300" clearable @on-change="handleTypeChange">
-          <Option value="商品区域">商品区域</Option>
-          <Option value="通路区域">通路区域</Option>
+          <Option :value="areaTypeValues.goods">{{ $t('productArea.type.goods') }}</Option>
+          <Option :value="areaTypeValues.passage">{{ $t('productArea.type.passage') }}</Option>
         </Select>
       </FormItem>
 
-      <FormItem label="图标">
+      <FormItem :label="$t('productArea.form.icon')">
         <Upload
           action="/xiyou/upload"
           :format="['png','jpg']"
           :on-success="handleUploadSuccess"
         >
-          <Button>上传图标</Button>
+          <Button>{{ $t('productArea.uploadIcon') }}</Button>
         </Upload>
         <div v-if="form.iconUrl" style="margin-top:8px">
           <img :src="form.iconUrl" style="width:40px;height:40px" />
@@ -38,20 +38,25 @@
       </FormItem>
     </Form>
 
-    <div style="margin-top:20px;font-weight:bold;">绘制{{ form.belongType === '通路区域' ? '通路' : '商品区域' }}</div>
+    <div style="margin-top:20px;font-weight:bold;">{{ $t('productArea.draw', { type: drawTypeLabel }) }}</div>
     <div style="border:1px solid #eee;margin-top:10px;height:500px;">
       <sl-l7 v-if="slMapShow" id="product-area-map" ref="sll7" :fullscreen="false"/>
     </div>
 
     <div slot="footer">
-      <Button @click="handleCancel">取消</Button>
-      <Button type="primary" @click="handleOk">确定</Button>
+      <Button @click="handleCancel">{{ $t('base.cancel') }}</Button>
+      <Button type="primary" @click="handleOk">{{ $t('base.sure') }}</Button>
     </div>
   </Modal>
 </template>
 
 <script>
 import { addProductArea, updateProductArea } from '@/api/path/product-area';
+
+const AREA_TYPE = {
+  goods: '商品区域',
+  passage: '通路区域'
+};
 
 export default {
   name: 'AddProductArea',
@@ -72,13 +77,23 @@ export default {
         mapIds: [],
         areaContent: null
       },
-
-      rules: {
-        mapId: [{ required: true, message: '请选择地图', type: 'number' }],
-        objectName: [{ required: true, message: '请输入名称' }],
-        belongType: [{ required: true, message: '请选择类型' }]
-      }
+      areaTypeValues: AREA_TYPE
     };
+  },
+
+  computed: {
+    rules() {
+      return {
+        mapId: [{ required: true, message: this.$t('productArea.validate.mapId'), type: 'number' }],
+        objectName: [{ required: true, message: this.$t('productArea.validate.objectName') }],
+        belongType: [{ required: true, message: this.$t('productArea.validate.belongType') }]
+      };
+    },
+    drawTypeLabel() {
+      return this.form.belongType === this.areaTypeValues.passage
+        ? this.$t('productArea.type.passage')
+        : this.$t('productArea.type.goods');
+    }
   },
 
   methods: {
@@ -157,7 +172,7 @@ export default {
 
               /* 必须等待 L7 场景稳定后再绘 */
               setTimeout(() => {
-                const isLine = this.form.belongType === '通路区域';
+                const isLine = this.form.belongType === this.areaTypeValues.passage;
                 let pts = [];
                 if (wkt) {
                    pts = this.wktToPoints(wkt);
@@ -222,7 +237,7 @@ export default {
           mapIds: this.form.mapIds
         };
 
-        const isLine = this.form.belongType === '通路区域';
+        const isLine = this.form.belongType === this.areaTypeValues.passage;
         let fetchedData = [];
 
         if (isLine) {
@@ -237,7 +252,9 @@ export default {
              payload.areaContent = this.convertToWKTLine(points);
              console.log('%c [Passage Path Coordinates] for map.js predefinedWaypoints:', 'color:blue;font-weight:bold');
              console.log(JSON.stringify(points, null, 2));
-             if (this.$Message) this.$Message.info('通路坐标已打印到控制台，可用于替换 map.js');
+             if (this.$Message) {
+               this.$Message.info(this.$t('productArea.tips.passageCoordsHint'));
+             }
           } else {
              payload.areaContent = this.convertToWKTPolygon(points);
           }
@@ -246,7 +263,7 @@ export default {
         const req = this.isEdit ? updateProductArea(payload) : addProductArea(payload);
 
         req.then(() => {
-          this.$Message.success('操作成功');
+          this.$Message.success(this.$t('productArea.messages.saveSuccess'));
           this.visible = false;
           this.$emit('success');
         });

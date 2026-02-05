@@ -17,8 +17,9 @@ export default {
     return {
       jizhan: {
         source: [],
-        layer: [],
-        hasLayer: false //是否画到页面数据
+        layer: null,
+        hasLayer: false, //是否画到页面数据
+        switchValue: true
       }
     };
   },
@@ -33,10 +34,14 @@ export default {
       let scene = this.scene;
       let layer = this.jizhan;
 
-      layer.data = params.baseStationList;
+      layer.data = params.baseStationList || [];
+      const show = typeof this.switchJizhan === 'boolean' ? this.switchJizhan : layer.switchValue;
+      layer.switchValue = show;
 
       // 装载组件图片---type1
-      scene.addImage('CL-GA25-P2', iconJizhan);
+      if (!scene.hasImage('CL-GA25-P2')) {
+        scene.addImage('CL-GA25-P2', iconJizhan);
+      }
 
       // 处理数据  lng 经度  lat 纬度
       let source = layer.data.reduce((arr, item) => {
@@ -58,12 +63,33 @@ export default {
         return arr;
       }, []);
 
-      this.jizhanHandleSetData(source);
+      this.jizhanHandleSetData(source, show);
     },
 
     // 选中图标显示 详情
-    jizhanHandleSetData(source) {
+    jizhanHandleSetData(source, forceShow) {
       let scene = this.scene;
+      let jizhan = this.jizhan;
+      const show =
+        typeof forceShow === 'boolean'
+          ? forceShow
+          : typeof this.switchJizhan === 'boolean'
+          ? this.switchJizhan
+          : jizhan.switchValue;
+      jizhan.switchValue = show;
+
+      if (jizhan.layer) {
+        try {
+          scene.removeLayer(jizhan.layer);
+        } catch (e) {}
+        jizhan.layer = null;
+        jizhan.hasLayer = false;
+      }
+
+      if (!source || !source.length) {
+        jizhan.source = source || [];
+        return;
+      }
 
       const imageLayer = new PointLayer({ zIndex: 3 })
         .source(source, {
@@ -92,14 +118,12 @@ export default {
         this.mapPopup.hide();
       });
 
-      let jizhan = this.jizhan;
-
       jizhan.layer = imageLayer;
       jizhan.source = source;
 
       // console.log('基站开关:', this.switchJizhan);
 
-      if (this.switchJizhan) {
+      if (show) {
         scene.addLayer(imageLayer);
         jizhan.hasLayer = true;
       }
@@ -108,16 +132,22 @@ export default {
     // 隐藏/显示  基站
     jizhanToggle(value) {
       let jizhan = this.jizhan;
+      jizhan.switchValue = value;
 
       if (value) {
-        this.$nextTick(() => {
-          this.jizhanHandleSetData(jizhan.source);
-        });
-      } else {
-        if (jizhan.hasLayer) {
-          this.scene.removeLayer(jizhan.layer);
-          jizhan.hasLayer = false;
+        if (jizhan.source && jizhan.source.length) {
+          this.$nextTick(() => {
+            this.jizhanHandleSetData(jizhan.source, true);
+          });
         }
+      } else {
+        if (jizhan.layer) {
+          try {
+            this.scene.removeLayer(jizhan.layer);
+          } catch (e) {}
+          jizhan.layer = null;
+        }
+        jizhan.hasLayer = false;
       }
     }
   }

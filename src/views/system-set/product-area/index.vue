@@ -3,8 +3,8 @@
     <Card :bordered="false" dis-hover>
 
       <div slot="title" class="header">
-        <span class="title">区域管理</span>
-        <Button type="primary" icon="md-add" @click="handleAdd">新增区域</Button>
+        <span class="title">{{ $t('productArea.title') }}</span>
+        <Button type="primary" icon="md-add" @click="handleAdd">{{ $t('productArea.addArea') }}</Button>
       </div>
 
       <Table
@@ -18,16 +18,16 @@
         </template>
 
         <template slot="belongType" slot-scope="{ row }">
-          <Tag color="blue">{{ row.belongType || '未设置' }}</Tag>
+          <Tag color="blue">{{ belongTypeLabel(row.belongType) }}</Tag>
         </template>
 
         <template slot="mapNames" slot-scope="{ row }">
-          {{ row.mapNames || '未绑定' }}
+          {{ row.mapNames || $t('productArea.unbound') }}
         </template>
 
         <template slot="action" slot-scope="{ row }">
-          <Button type="text" @click="handleEdit(row)">编辑</Button>
-          <Button type="text" @click="handleDelete(row)">删除</Button>
+          <Button type="text" @click="handleEdit(row)">{{ $t('base.edit') }}</Button>
+          <Button type="text" @click="handleDelete(row)">{{ $t('base.delete') }}</Button>
         </template>
 
       </Table>
@@ -49,10 +49,20 @@ import {
 
 import AddProductArea from './components/AddProductArea.vue'
 
+const AREA_TYPE = {
+  goods: '商品区域',
+  passage: '通路区域'
+}
+
 export default {
   name: 'ProductArea',
   mixins: [mixinData, mixinTable, mixinMethods],
   components: { AddProductArea },
+  data() {
+    return {
+      areaTypeValues: AREA_TYPE
+    }
+  },
 
   methods: {
     /** 覆盖 mixin 里的新增 */
@@ -65,19 +75,28 @@ export default {
       this.$refs.addProductArea.show(row);
     },
 
+    belongTypeLabel(type) {
+      if (type === this.areaTypeValues.goods) return this.$t('productArea.type.goods')
+      if (type === this.areaTypeValues.passage) return this.$t('productArea.type.passage')
+      return type || this.$t('productArea.unset')
+    },
+
     /** 删除 */
     handleDelete(row) {
+      const areaName = row.objectName || this.$t('productArea.defaultName')
       this.$Modal.confirm({
-        title: "确认删除？",
-        content: `确定删除【${row.objectName}】吗？`,
+        title: this.$t('productArea.tips.deleteConfirmTitle'),
+        content: this.$t('productArea.tips.deleteConfirmContent', { name: areaName }),
+        okText: this.$t('base.sure'),
+        cancelText: this.$t('base.cancel'),
         onOk: () => {
           deleteProductArea({ areaId: row.areaId })
             .then(() => {
-              this.$Message.success("删除成功")
+              this.$Message.success(this.$t('productArea.messages.deleteSuccess'))
               this.loadTable()
             })
             .catch(err => {
-              this.$Message.error(err?.msg || "删除失败")
+              this.$Message.error(err?.msg || this.$t('productArea.messages.deleteFail'))
             })
         }
       })

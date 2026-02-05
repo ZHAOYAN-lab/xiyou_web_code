@@ -17,8 +17,8 @@ export default {
           this.tableData = Array.isArray(res) ? res : [];
 
           this.tableData.forEach(item => {
-            item.mapNames = item.mapNames || '未绑定';
-            item.belongType = item.belongType || '未设置';
+            item.mapNames = item.mapNames || '';
+            item.belongType = item.belongType || '';
           });
         })
         .finally(() => {
@@ -56,7 +56,11 @@ export default {
       const api = this.form.areaId ? updateProductArea : addProductArea;
 
       api(this.form).then(() => {
-        this.$Message.success(this.form.areaId ? "修改成功" : "新增成功");
+        this.$Message.success(
+          this.form.areaId
+            ? this.$t('productArea.messages.updateSuccess')
+            : this.$t('productArea.messages.addSuccess')
+        );
         this.editModal = false;
         this.loadTable();
       });
@@ -69,11 +73,13 @@ export default {
       console.log("🔴 row.areaId =", row.areaId);
       
       // ⭐ 直接用字符串模板，避免 row 对象的问题
-      const areaName = row.objectName || '该区域';
+      const areaName = row.objectName || this.$t('productArea.defaultName');
       
       this.$Modal.confirm({
-        title: "确认删除？",
-        content: `确定删除【${areaName}】吗？`,
+        title: this.$t('productArea.tips.deleteConfirmTitle'),
+        content: this.$t('productArea.tips.deleteConfirmContent', { name: areaName }),
+        okText: this.$t('base.sure'),
+        cancelText: this.$t('base.cancel'),
         onOk: () => {
           console.log("🟢🟢🟢 用户点击确认");
           console.log("🟢 准备调用 API，参数:", { areaId: row.areaId });
@@ -81,13 +87,15 @@ export default {
           return deleteProductArea({ areaId: row.areaId })
             .then((res) => {
               console.log("🟢 删除成功，返回:", res);
-              this.$Message.success("删除成功");
+              this.$Message.success(this.$t('productArea.messages.deleteSuccess'));
               this.loadTable();
             })
             .catch(err => {
               console.log("🔴 删除失败，错误:", err);
               console.log("🔴 错误对象:", JSON.stringify(err, null, 2));
-              this.$Message.error(err?.msg || err?.message || "删除失败");
+              this.$Message.error(
+                err?.msg || err?.message || this.$t('productArea.messages.deleteFail')
+              );
             });
         },
         onCancel: () => {

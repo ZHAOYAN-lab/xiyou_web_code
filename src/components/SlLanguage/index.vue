@@ -1,6 +1,11 @@
 <template>
   <div class="sl-language">
-    <Dropdown transfer transfer-class-name="language-dropdown" @on-click="changeLanguage">
+    <Dropdown
+      trigger="click"
+      transfer
+      transfer-class-name="language-dropdown"
+      @on-click="changeLanguage"
+    >
       <p class="l-p" :class="{ jp: isJP }"></p>
       <DropdownMenu slot="list">
         <DropdownItem v-for="(item, index) in language" :key="index" :name="item.lang">

@@ -148,7 +148,10 @@
     "fenceManage": "围栏管理",
     "buildingSet": "地图管理",
     "floorSet": "楼层管理",
-    "serviceSet": "服务管理"
+    "serviceSet": "服务管理",
+    "taskManage": "任务管理",
+    "productArea": "区域管理",
+    "accountManage": "账号管理"
   },
   "login": {
     "tab": "账户密码登录",
@@ -223,6 +226,33 @@
       "a": "地图不能为空",
       "b": "对象不能为空",
       "c": "日期不能为空"
+    }
+  },
+  "h5Location": {
+    "title": "定位信息",
+    "pendingTitle": "待执行任务",
+    "pendingEmpty": "暂无待执行任务",
+    "taskTitle": "我的任务",
+    "expand": "展开",
+    "collapse": "收起",
+    "noTask": "当前账号没有任务",
+    "labelId": "ID",
+    "labelType": "类型",
+    "labelObject": "对象",
+    "labelArea": "区域",
+    "labelRemark": "备注",
+    "labelStatus": "状态",
+    "start": "起点",
+    "end": "终点",
+    "showTaskArea": "显示任务区域",
+    "arrived": "已到达",
+    "navActionStart": "开始",
+    "navActionContinue": "继续",
+    "navButton": "{action}导航（去{target}）",
+    "status": {
+      "running": "执行中",
+      "done": "已完成",
+      "dispatched": "已派发"
     }
   },
 
@@ -404,5 +434,170 @@
       "loading": "授权中",
       "loadingSuccess": "授权成功"
     }
+  },
+  "taskManage": {
+    "title": "任务管理",
+    "addTask": "新增任务",
+    "dispatchTask": "派发任务",
+    "table": {
+      "objectName": "对象名称",
+      "type": "类型",
+      "remark": "备注",
+      "route": "路线",
+      "status": "状态"
+    },
+    "form": {
+      "name": "任务名称",
+      "type": "所属类型",
+      "startArea": "开始区域",
+      "endArea": "结束区域",
+      "startTime": "开始时间",
+      "endTime": "结束时间",
+      "remark": "备注",
+      "route": "路线",
+      "employee": "选择员工"
+    },
+    "type": {
+      "nav": "导航",
+      "pickup": "取货",
+      "delivery": "送货"
+    },
+    "status": {
+      "dispatched": "已派发",
+      "running": "执行中"
+    },
+    "route": {
+      "currentPosition": "当前位置",
+      "fromCurrent": "从当前位置开始"
+    },
+    "placeholder": {
+      "startTime": "请选择开始时间",
+      "endTime": "请选择结束时间"
+    },
+    "action": {
+      "dispatch": "派发"
+    },
+    "tips": {
+      "dispatchedNeedCancel": "已派发，需先取消",
+      "runningNoDelete": "任务执行中，禁止删除",
+      "selectEmployee": "请至少选择一名员工",
+      "addSuccess": "新增成功",
+      "dispatchSuccess": "派发成功",
+      "cancelSuccess": "已取消任务",
+      "deleteConfirmTitle": "确认删除？",
+      "deleteConfirmContent": "是否删除该任务？"
+    },
+    "validate": {
+      "name": "请输入对象名称",
+      "type": "请选择类型",
+      "endArea": "请选择结束区域"
+    }
+  },
+  "accountManage": {
+    "title": "账号管理",
+    "addEmployee": "添加员工",
+    "department": "所属部门",
+    "level": "职级",
+    "employeeName": "员工名称",
+    "account": "账号",
+    "password": "密码",
+    "remark": "备注",
+    "createTime": "创建时间",
+    "reset": "重置",
+    "placeholder": {
+      "department": "所属部门",
+      "level": "职级",
+      "employeeName": "员工名称",
+      "account": "账号",
+      "selectDepartment": "请选择部门",
+      "selectLevel": "请选择职级",
+      "inputEmployeeName": "请输入员工名称",
+      "inputAccount": "请输入账号",
+      "inputPassword": "请输入密码",
+      "inputRemark": "请输入备注"
+    },
+    "departments": {
+      "goods": "货物管理部门",
+      "safety": "安全部门",
+      "warehouse": "仓库管理部门"
+    },
+    "messages": {
+      "addSuccess": "添加成功"
+    },
+    "validate": {
+      "department": "请选择部门",
+      "level": "请选择职级",
+      "employeeName": "请输入员工名称",
+      "account": "请输入账号",
+      "password": "请输入密码"
+    }
+  },
+  "productArea": {
+    "title": "区域管理",
+    "addArea": "新增区域",
+    "editArea": "编辑区域",
+    "table": {
+      "objectName": "对象名称",
+      "belongType": "所属类型",
+      "mapNames": "绑定地图",
+      "action": "操作"
+    },
+    "form": {
+      "map": "地图",
+      "objectName": "对象名称",
+      "belongType": "所属类型",
+      "icon": "图标"
+    },
+    "type": {
+      "goods": "商品区域",
+      "passage": "通路区域"
+    },
+    "draw": "绘制{type}",
+    "unset": "未设置",
+    "unbound": "未绑定",
+    "uploadIcon": "上传图标",
+    "tips": {
+      "deleteConfirmTitle": "确认删除？",
+      "deleteConfirmContent": "确定删除【{name}】吗？",
+      "passageCoordsHint": "通路坐标已打印到控制台，可用于替换 map.js"
+    },
+    "messages": {
+      "addSuccess": "新增成功",
+      "updateSuccess": "修改成功",
+      "deleteSuccess": "删除成功",
+      "deleteFail": "删除失败",
+      "saveSuccess": "操作成功"
+    },
+    "validate": {
+      "mapId": "请选择地图",
+      "objectName": "请输入名称",
+      "belongType": "请选择类型",
+      "objectNameFull": "请输入对象名称",
+      "belongTypeFull": "请选择所属类型"
+    },
+    "defaultName": "该区域"
+  },
+  "mobileNav": {
+    "start": "开始导航",
+    "pause": "暂停导航",
+    "resume": "继续导航",
+    "cancel": "取消导航",
+    "noTask": "当前没有派发的任务",
+    "noTarget": "没有导航目标",
+    "waiting": "等待定位中...",
+    "started": "导航开始",
+    "arrived": "到达终点（10 cm）",
+    "paused": "已暂停",
+    "canceled": "导航已取消"
+  },
+  "mapNav": {
+    "mapDataLoadFail": "地图数据加载失败，无法计算路线",
+    "noPassageArea": "未配置通路区域",
+    "noFixedRoute": "固定路线未配置",
+    "navStart": "已开始导航",
+    "navStartTop": "已开始导航（上路）",
+    "navStartBottom": "已开始导航（下路）",
+    "arrived": "已到达",
+    "taskArea": "任务区域"
   }
 }

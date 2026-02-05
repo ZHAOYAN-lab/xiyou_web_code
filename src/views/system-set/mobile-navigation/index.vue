@@ -16,11 +16,11 @@
 
     <!-- 底部按钮 -->
     <div class="bottom-btns">
-      <Button type="primary" long @click="startNav">开始导航</Button>
+      <Button type="primary" long @click="startNav">{{ $t('mobileNav.start') }}</Button>
       <Button type="warning" long style="margin-top:10px;" @click="pauseNav">
-        {{ paused ? "继续导航" : "暂停导航" }}
+        {{ paused ? $t('mobileNav.resume') : $t('mobileNav.pause') }}
       </Button>
-      <Button type="error" long style="margin-top:10px;" @click="cancelNav">取消导航</Button>
+      <Button type="error" long style="margin-top:10px;" @click="cancelNav">{{ $t('mobileNav.cancel') }}</Button>
     </div>
 
   </div>
@@ -71,7 +71,7 @@ export default {
         params: { objectName: this.myName }
       }).then(res => {
         if (!res || !res.data) {
-          this.$Message.error("当前没有派发的任务");
+          this.$Message.error(this.$t('mobileNav.noTask'));
           return;
         }
 
@@ -139,12 +139,12 @@ export default {
     /* =================== 开始导航 =================== */
     startNav() {
       if (!this.targetPos) {
-        this.$Message.error("没有导航目标");
+        this.$Message.error(this.$t('mobileNav.noTarget'));
         return;
       }
 
       if (!this.currentPos) {
-        this.$Message.error("等待定位中...");
+        this.$Message.error(this.$t('mobileNav.waiting'));
         return;
       }
 
@@ -155,7 +155,7 @@ export default {
       this.remainRoute = [...this.fullRoute];
 
       this.drawRoute();
-      this.$Message.success("导航开始");
+      this.$Message.success(this.$t('mobileNav.started'));
     },
 
     /* =================== MQTT 实时位置 =================== */
@@ -180,7 +180,7 @@ export default {
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       if (dist < 0.1) {
-        this.$Message.success("到达终点（10 cm）");
+        this.$Message.success(this.$t('mobileNav.arrived'));
         this.cancelNav();
       }
     },
@@ -206,7 +206,7 @@ export default {
 
     pauseNav() {
       this.paused = !this.paused;
-      this.$Message.info(this.paused ? "已暂停" : "继续导航");
+      this.$Message.info(this.paused ? this.$t('mobileNav.paused') : this.$t('mobileNav.resume'));
     },
 
     cancelNav() {
@@ -220,7 +220,7 @@ export default {
 
       try { this.$refs.sll7.guijiClear(); } catch {}
 
-      this.$Message.warning("导航已取消");
+      this.$Message.warning(this.$t('mobileNav.canceled'));
     }
   }
 };

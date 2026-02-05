@@ -161,7 +161,13 @@ export default {
         if (scene.drawer) scene.drawer.clear();
         if (this.l7ImageMap) scene.removeLayer(this.l7ImageMap);
 
-        if (this.jizhan?.hasLayer) scene.removeLayer(this.jizhan.layer);
+        if (this.jizhan?.layer) {
+          try {
+            scene.removeLayer(this.jizhan.layer);
+          } catch (e) {}
+          this.jizhan.layer = null;
+          this.jizhan.hasLayer = false;
+        }
 
         if (this.polygonLayer.hasLayer) {
           this.polygonLayer.layer.forEach((item) => scene.removeLayer(item));
@@ -515,7 +521,7 @@ export default {
             type: 'Feature',
             properties: {
               c: '#95de64',
-              name: area.objectName || '任务区域'
+              name: area.objectName || this.$t('mapNav.taskArea')
             },
             geometry: {
               type: 'Polygon',
@@ -955,7 +961,7 @@ export default {
       this.selectPassageRouteByPosition(this.currentPos);
 
       if (!this.mapMetersPerPixel) {
-        this.$Message && this.$Message.error('地图数据加载失败，无法计算路线');
+        this.$Message && this.$Message.error(this.$t('mapNav.mapDataLoadFail'));
         console.error('[Nav] mapMetersPerPixel is empty');
         return;
       }
@@ -1037,7 +1043,7 @@ export default {
         null;
 
       if (!activeRoute || !Array.isArray(activeRoute.waypoints) || activeRoute.waypoints.length < 2) {
-        this.$Message && this.$Message.error('未配置通路区域');
+        this.$Message && this.$Message.error(this.$t('mapNav.noPassageArea'));
         return;
       }
 
@@ -1064,7 +1070,7 @@ export default {
       }
 
       if (!route || !route.length) {
-        this.$Message && this.$Message.error('固定路线未配置');
+        this.$Message && this.$Message.error(this.$t('mapNav.noFixedRoute'));
         return;
       }
 
@@ -1093,9 +1099,9 @@ export default {
       }
 
       if (this.$Message) {
-        let msg = '已开始导航';
-        if (name === 'top') msg = '已开始导航（上路）';
-        if (name === 'bottom') msg = '已开始导航（下路）';
+        let msg = this.$t('mapNav.navStart');
+        if (name === 'top') msg = this.$t('mapNav.navStartTop');
+        if (name === 'bottom') msg = this.$t('mapNav.navStartBottom');
         this.$Message.success(msg);
       }
     },
@@ -1112,7 +1118,7 @@ export default {
       this.nav.startPoint = null;
       this.nav.targetPoint = null;
       this.nav.guideReached = false;
-      this.$Message && this.$Message.success('已到达');
+      this.$Message && this.$Message.success(this.$t('mapNav.arrived'));
     },
 
     navFinish() {

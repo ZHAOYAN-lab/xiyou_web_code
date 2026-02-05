@@ -365,7 +365,10 @@
     "system": "システム管理",
     "trackingManage": "ルート管理",
     "wariningInfo": "アラートデータ詳細",
-    "warning": "アラート管理"
+    "warning": "アラート管理",
+    "taskManage": "タスク管理",
+    "productArea": "エリア管理",
+    "accountManage": "アカウント管理"
   },
   "trackingManage": {
     "title": "ルート管理",
@@ -373,6 +376,33 @@
       "a": "地図は必須入力項目です",
       "b": "測位対象は必須入力項目です",
       "c": "日時は必須入力項目です"
+    }
+  },
+  "h5Location": {
+    "title": "位置情報",
+    "pendingTitle": "未実行タスク",
+    "pendingEmpty": "未実行タスクはありません",
+    "taskTitle": "私のタスク",
+    "expand": "展開",
+    "collapse": "折りたたむ",
+    "noTask": "現在のアカウントにタスクがありません",
+    "labelId": "ID",
+    "labelType": "タイプ",
+    "labelObject": "対象",
+    "labelArea": "エリア",
+    "labelRemark": "備考",
+    "labelStatus": "状態",
+    "start": "起点",
+    "end": "終点",
+    "showTaskArea": "タスクエリアを表示",
+    "arrived": "到着",
+    "navActionStart": "開始",
+    "navActionContinue": "続行",
+    "navButton": "{action}ナビ（{target}へ）",
+    "status": {
+      "running": "実行中",
+      "done": "完了",
+      "dispatched": "割当済み"
     }
   },
   "warningInfo": {
@@ -397,5 +427,170 @@
       "b": "違法越境",
       "c": "承認対象外侵入"
     }
+  },
+  "taskManage": {
+    "title": "タスク管理",
+    "addTask": "タスク追加",
+    "dispatchTask": "タスク割り当て",
+    "table": {
+      "objectName": "対象名",
+      "type": "種類",
+      "remark": "備考",
+      "route": "ルート",
+      "status": "状態"
+    },
+    "form": {
+      "name": "タスク名",
+      "type": "種類",
+      "startArea": "開始エリア",
+      "endArea": "終了エリア",
+      "startTime": "開始時間",
+      "endTime": "終了時間",
+      "remark": "備考",
+      "route": "ルート",
+      "employee": "従業員を選択"
+    },
+    "type": {
+      "nav": "ナビ",
+      "pickup": "集荷",
+      "delivery": "配送"
+    },
+    "status": {
+      "dispatched": "割り当て済み",
+      "running": "実行中"
+    },
+    "route": {
+      "currentPosition": "現在位置",
+      "fromCurrent": "現在位置から開始"
+    },
+    "placeholder": {
+      "startTime": "開始時間を選択してください",
+      "endTime": "終了時間を選択してください"
+    },
+    "action": {
+      "dispatch": "割り当て"
+    },
+    "tips": {
+      "dispatchedNeedCancel": "割り当て済みのため、先にキャンセルしてください",
+      "runningNoDelete": "タスク実行中のため削除できません",
+      "selectEmployee": "少なくとも1名の従業員を選択してください",
+      "addSuccess": "追加に成功しました",
+      "dispatchSuccess": "割り当てに成功しました",
+      "cancelSuccess": "タスクをキャンセルしました",
+      "deleteConfirmTitle": "削除を確認しますか？",
+      "deleteConfirmContent": "このタスクを削除しますか？"
+    },
+    "validate": {
+      "name": "対象名を入力してください",
+      "type": "種類を選択してください",
+      "endArea": "終了エリアを選択してください"
+    }
+  },
+  "accountManage": {
+    "title": "アカウント管理",
+    "addEmployee": "従業員追加",
+    "department": "所属部署",
+    "level": "職級",
+    "employeeName": "従業員名",
+    "account": "アカウント",
+    "password": "パスワード",
+    "remark": "備考",
+    "createTime": "作成日時",
+    "reset": "リセット",
+    "placeholder": {
+      "department": "所属部署",
+      "level": "職級",
+      "employeeName": "従業員名",
+      "account": "アカウント",
+      "selectDepartment": "部署を選択してください",
+      "selectLevel": "職級を選択してください",
+      "inputEmployeeName": "従業員名を入力してください",
+      "inputAccount": "アカウントを入力してください",
+      "inputPassword": "パスワードを入力してください",
+      "inputRemark": "備考を入力してください"
+    },
+    "departments": {
+      "goods": "貨物管理部門",
+      "safety": "安全部門",
+      "warehouse": "倉庫管理部門"
+    },
+    "messages": {
+      "addSuccess": "追加に成功しました"
+    },
+    "validate": {
+      "department": "部署を選択してください",
+      "level": "職級を選択してください",
+      "employeeName": "従業員名を入力してください",
+      "account": "アカウントを入力してください",
+      "password": "パスワードを入力してください"
+    }
+  },
+  "productArea": {
+    "title": "エリア管理",
+    "addArea": "エリア追加",
+    "editArea": "エリア編集",
+    "table": {
+      "objectName": "対象名",
+      "belongType": "種類",
+      "mapNames": "地図紐付け",
+      "action": "操作"
+    },
+    "form": {
+      "map": "地図",
+      "objectName": "対象名",
+      "belongType": "種類",
+      "icon": "アイコン"
+    },
+    "type": {
+      "goods": "商品エリア",
+      "passage": "通路エリア"
+    },
+    "draw": "{type}を描画",
+    "unset": "未設定",
+    "unbound": "未紐付け",
+    "uploadIcon": "アイコンをアップロード",
+    "tips": {
+      "deleteConfirmTitle": "削除を確認しますか？",
+      "deleteConfirmContent": "【{name}】を削除しますか？",
+      "passageCoordsHint": "通路の座標をコンソールに出力しました。map.js の置き換えに使用できます"
+    },
+    "messages": {
+      "addSuccess": "追加に成功しました",
+      "updateSuccess": "更新に成功しました",
+      "deleteSuccess": "削除に成功しました",
+      "deleteFail": "削除に失敗しました",
+      "saveSuccess": "操作に成功しました"
+    },
+    "validate": {
+      "mapId": "地図を選択してください",
+      "objectName": "名前を入力してください",
+      "belongType": "種類を選択してください",
+      "objectNameFull": "対象名を入力してください",
+      "belongTypeFull": "所属種類を選択してください"
+    },
+    "defaultName": "このエリア"
+  },
+  "mobileNav": {
+    "start": "ナビ開始",
+    "pause": "ナビ一時停止",
+    "resume": "ナビ再開",
+    "cancel": "ナビキャンセル",
+    "noTask": "現在、割り当てられたタスクはありません",
+    "noTarget": "ナビの目的地がありません",
+    "waiting": "位置情報を取得中...",
+    "started": "ナビを開始しました",
+    "arrived": "目的地に到達しました（10 cm）",
+    "paused": "一時停止しました",
+    "canceled": "ナビをキャンセルしました"
+  },
+  "mapNav": {
+    "mapDataLoadFail": "地図データの読み込みに失敗し、ルートを計算できません",
+    "noPassageArea": "通路エリアが設定されていません",
+    "noFixedRoute": "固定ルートが設定されていません",
+    "navStart": "ナビを開始しました",
+    "navStartTop": "ナビを開始しました（上ルート）",
+    "navStartBottom": "ナビを開始しました（下ルート）",
+    "arrived": "到着しました",
+    "taskArea": "タスクエリア"
   }
 }

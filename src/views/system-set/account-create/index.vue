@@ -6,7 +6,7 @@
           <Select
             v-model="search.department"
             class="sl-width-200"
-            placeholder="所属部门"
+            :placeholder="$t('accountManage.placeholder.department')"
             clearable
           >
             <Option
@@ -23,7 +23,7 @@
           <Select
             v-model="search.level"
             class="sl-width-150"
-            placeholder="职级"
+            :placeholder="$t('accountManage.placeholder.level')"
             clearable
           >
             <Option
@@ -40,7 +40,7 @@
           <Input
             v-model="search.employeeName"
             maxlength="20"
-            placeholder="员工名称"
+            :placeholder="$t('accountManage.placeholder.employeeName')"
             class="sl-width-150"
             clearable
           />
@@ -50,24 +50,24 @@
           <Input
             v-model="search.accountName"
             maxlength="30"
-            placeholder="账号"
+            :placeholder="$t('accountManage.placeholder.account')"
             class="sl-width-150"
             clearable
           />
         </div>
 
         <div>
-          <Button type="primary" @click="handleSearch">查询</Button>
-          <Button class="sl-margin-left-10" @click="handleResetSearch">重置</Button>
+          <Button type="primary" @click="handleSearch">{{ $t('base.search') }}</Button>
+          <Button class="sl-margin-left-10" @click="handleResetSearch">{{ $t('accountManage.reset') }}</Button>
         </div>
       </div>
     </Card>
 
     <Card :bordered="false" class="sl-margin-top-12" dis-hover>
       <div slot="title" class="header">
-        <span class="title">账号管理</span>
+        <span class="title">{{ $t('accountManage.title') }}</span>
         <Button type="primary" icon="md-person-add" @click="handleOpenAdd">
-          添加员工
+          {{ $t('accountManage.addEmployee') }}
         </Button>
       </div>
 
@@ -79,15 +79,15 @@
       />
     </Card>
 
-    <Modal v-model="addDialogVisible" title="添加员工" :mask-closable="false">
+    <Modal v-model="addDialogVisible" :title="$t('accountManage.addEmployee')" :mask-closable="false">
       <Form
         ref="addFormRef"
         :model="form"
         :rules="rules"
         :label-width="100"
       >
-        <FormItem label="所属部门" prop="department">
-          <Select v-model="form.department" placeholder="请选择部门">
+        <FormItem :label="$t('accountManage.department')" prop="department">
+          <Select v-model="form.department" :placeholder="$t('accountManage.placeholder.selectDepartment')">
             <Option
               v-for="item in departmentOptions"
               :key="item.value"
@@ -98,8 +98,8 @@
           </Select>
         </FormItem>
 
-        <FormItem label="职级" prop="level">
-          <Select v-model="form.level" placeholder="请选择职级">
+        <FormItem :label="$t('accountManage.level')" prop="level">
+          <Select v-model="form.level" :placeholder="$t('accountManage.placeholder.selectLevel')">
             <Option
               v-for="item in levelOptions"
               :key="item.value"
@@ -110,45 +110,45 @@
           </Select>
         </FormItem>
 
-        <FormItem label="员工名称" prop="employeeName">
+        <FormItem :label="$t('accountManage.employeeName')" prop="employeeName">
           <Input
             v-model="form.employeeName"
             maxlength="20"
-            placeholder="请输入员工名称"
+            :placeholder="$t('accountManage.placeholder.inputEmployeeName')"
           />
         </FormItem>
 
-        <FormItem label="账号" prop="accountName">
+        <FormItem :label="$t('accountManage.account')" prop="accountName">
           <Input
             v-model="form.accountName"
             maxlength="30"
-            placeholder="请输入账号"
+            :placeholder="$t('accountManage.placeholder.inputAccount')"
           />
         </FormItem>
 
-        <FormItem label="密码" prop="password">
+        <FormItem :label="$t('accountManage.password')" prop="password">
           <Input
             v-model="form.password"
             type="password"
             maxlength="30"
-            placeholder="请输入密码"
+            :placeholder="$t('accountManage.placeholder.inputPassword')"
           />
         </FormItem>
 
-        <FormItem label="备注" prop="remark">
+        <FormItem :label="$t('accountManage.remark')" prop="remark">
           <Input
             v-model="form.remark"
             type="textarea"
             :rows="3"
             maxlength="100"
-            placeholder="请输入备注"
+            :placeholder="$t('accountManage.placeholder.inputRemark')"
           />
         </FormItem>
       </Form>
 
       <div slot="footer">
-        <Button @click="handleCancelAdd">取消</Button>
-        <Button type="primary" @click="handleAdd">确定</Button>
+        <Button @click="handleCancelAdd">{{ $t('base.cancel') }}</Button>
+        <Button type="primary" @click="handleAdd">{{ $t('base.sure') }}</Button>
       </div>
     </Modal>
   </div>
@@ -156,6 +156,12 @@
 
 <script>
 import userApi from '@/api/path/user'
+
+const DEPARTMENT = {
+  goods: '货物管理部门',
+  safety: '安全部门',
+  warehouse: '仓库管理部门'
+}
 
 export default {
   name: 'AccountManage',
@@ -178,30 +184,39 @@ export default {
         password: '',
         remark: ''
       },
-      departmentOptions: [
-        { label: '货物管理部门', value: '货物管理部门' },
-        { label: '安全部门', value: '安全部门' },
-        { label: '仓库管理部门', value: '仓库管理部门' }
-      ],
+      departmentValues: DEPARTMENT,
       levelOptions: [
         { label: 'A', value: 'A' },
         { label: 'B', value: 'B' },
         { label: 'C', value: 'C' }
-      ],
-      columns: [
-        { title: '所属部门', key: 'department', align: 'center' },
-        { title: '职级', key: 'level', align: 'center' },
-        { title: '员工名称', key: 'employeeName', align: 'center' },
-        { title: '账号', key: 'accountName', align: 'center' },
-        { title: '备注', key: 'remark', align: 'center' },
-        { title: '创建时间', key: 'createTime', align: 'center' }
-      ],
-      rules: {
-        department: [{ required: true, message: '请选择部门', trigger: 'change' }],
-        level: [{ required: true, message: '请选择职级', trigger: 'change' }],
-        employeeName: [{ required: true, message: '请输入员工名称', trigger: 'blur' }],
-        accountName: [{ required: true, message: '请输入账号', trigger: 'blur' }],
-        password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
+      ]
+    }
+  },
+  computed: {
+    departmentOptions() {
+      return [
+        { label: this.$t('accountManage.departments.goods'), value: this.departmentValues.goods },
+        { label: this.$t('accountManage.departments.safety'), value: this.departmentValues.safety },
+        { label: this.$t('accountManage.departments.warehouse'), value: this.departmentValues.warehouse }
+      ]
+    },
+    columns() {
+      return [
+        { title: this.$t('accountManage.department'), key: 'department', align: 'center' },
+        { title: this.$t('accountManage.level'), key: 'level', align: 'center' },
+        { title: this.$t('accountManage.employeeName'), key: 'employeeName', align: 'center' },
+        { title: this.$t('accountManage.account'), key: 'accountName', align: 'center' },
+        { title: this.$t('accountManage.remark'), key: 'remark', align: 'center' },
+        { title: this.$t('accountManage.createTime'), key: 'createTime', align: 'center' }
+      ]
+    },
+    rules() {
+      return {
+        department: [{ required: true, message: this.$t('accountManage.validate.department'), trigger: 'change' }],
+        level: [{ required: true, message: this.$t('accountManage.validate.level'), trigger: 'change' }],
+        employeeName: [{ required: true, message: this.$t('accountManage.validate.employeeName'), trigger: 'blur' }],
+        accountName: [{ required: true, message: this.$t('accountManage.validate.account'), trigger: 'blur' }],
+        password: [{ required: true, message: this.$t('accountManage.validate.password'), trigger: 'blur' }]
       }
     }
   },
@@ -258,7 +273,7 @@ export default {
           password: this.form.password,
           remark: this.form.remark
         }).then(() => {
-          this.$Message.success('添加成功')
+          this.$Message.success(this.$t('accountManage.messages.addSuccess'))
           this.addDialogVisible = false
           this.resetAddForm()
           this.fetchTable()

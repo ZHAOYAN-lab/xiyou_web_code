@@ -6,7 +6,7 @@
       <!-- ================= 左侧：待执行任务 ================= -->
       <div class="pending-task-box" :class="{ collapsed: pendingCollapsed }">
         <div class="title" @click="togglePendingCollapse">
-          <span>待执行任务</span>
+          <span>{{ $t('h5Location.pendingTitle') }}</span>
           <span
             v-if="pendingTaskList.length"
             class="red-dot"
@@ -18,7 +18,7 @@
 
         <div v-if="!pendingCollapsed">
           <div v-if="pendingTaskList.length === 0" class="empty">
-            暂无待执行任务
+            {{ $t('h5Location.pendingEmpty') }}
           </div>
 
           <ul v-else class="task-list">
@@ -31,13 +31,14 @@
               <div class="name">{{ task.objectName || '-' }}</div>
               <div class="desc">
                 <template v-if="task.startAreaName && task.endAreaName">
-                  起点 {{ task.startAreaName }} → 终点 {{ task.endAreaName }}
+                  {{ $t('h5Location.start') }} {{ task.startAreaName }} →
+                  {{ $t('h5Location.end') }} {{ task.endAreaName }}
                 </template>
                 <template v-else-if="task.endAreaName">
-                  终点 {{ task.endAreaName }}
+                  {{ $t('h5Location.end') }} {{ task.endAreaName }}
                 </template>
                 <template v-else-if="task.startAreaName">
-                  起点 {{ task.startAreaName }}
+                  {{ $t('h5Location.start') }} {{ task.startAreaName }}
                 </template>
                 <template v-else>-</template>
               </div>
@@ -49,41 +50,45 @@
       <!-- ================= 右侧：任务详情 ================= -->
       <div class="task-info-box" :class="{ collapsed }">
         <div class="title" @click="toggleCollapse">
-          <span>我的任务</span>
-          <span class="collapse-btn">{{ collapsed ? '展开' : '收起' }}</span>
+          <span>{{ $t('h5Location.taskTitle') }}</span>
+          <span class="collapse-btn">{{
+            collapsed ? $t('h5Location.expand') : $t('h5Location.collapse')
+          }}</span>
         </div>
 
         <div v-if="!collapsed">
           <div v-if="!currentTask" class="empty">
-            当前账号没有任务
+            {{ $t('h5Location.noTask') }}
           </div>
 
           <div v-else class="task-info">
-            <div>ID：{{ currentTask.id }}</div>
-            <div>类型：{{ currentTask.taskType || '-' }}</div>
-            <div>对象：{{ currentTask.objectName || '-' }}</div>
+            <div>{{ $t('h5Location.labelId') }}：{{ currentTask.id }}</div>
+            <div>{{ $t('h5Location.labelType') }}：{{ formatTaskType(currentTask.taskType) }}</div>
+            <div>{{ $t('h5Location.labelObject') }}：{{ currentTask.objectName || '-' }}</div>
 
             <div>
-              区域：
+              {{ $t('h5Location.labelArea') }}：
               <template v-if="currentTask.startAreaName && currentTask.endAreaName">
-                起点 {{ currentTask.startAreaName }} →
-                终点 {{ currentTask.endAreaName }}
+                {{ $t('h5Location.start') }} {{ currentTask.startAreaName }} →
+                {{ $t('h5Location.end') }} {{ currentTask.endAreaName }}
               </template>
               <template v-else-if="currentTask.endAreaName">
-                终点 {{ currentTask.endAreaName }}
+                {{ $t('h5Location.end') }} {{ currentTask.endAreaName }}
               </template>
               <template v-else-if="currentTask.startAreaName">
-                起点 {{ currentTask.startAreaName }}
+                {{ $t('h5Location.start') }} {{ currentTask.startAreaName }}
               </template>
               <template v-else>-</template>
             </div>
 
             <div>
-              备注：{{ currentTask.remark || currentTask.taskDesc || '-' }}
+              {{ $t('h5Location.labelRemark') }}：{{
+                currentTask.remark || currentTask.taskDesc || '-'
+              }}
             </div>
 
             <div>
-              状态：
+              {{ $t('h5Location.labelStatus') }}：
               <b
                 :style="{
                   color:
@@ -94,7 +99,7 @@
                       : '#333'
                 }"
               >
-                {{ currentTask.status }}
+                {{ formatTaskStatus(currentTask.status) }}
               </b>
             </div>
 
@@ -105,7 +110,7 @@
               :disabled="!(currentTask.startAreaId || currentTask.endAreaId)"
               @click="handleShowTaskArea"
             >
-              显示任务区域
+              {{ $t('h5Location.showTaskArea') }}
             </Button>
           </div>
         </div>
@@ -138,7 +143,7 @@
         style="margin-left: 12px"
         @click="handleArrived"
       >
-        已到达
+        {{ $t('h5Location.arrived') }}
       </Button>
     </div>
 
@@ -180,10 +185,15 @@ export default {
 
   computed: {
     navButtonText() {
-      if (!this.currentTask) return '开始导航';
-      const target = this.taskStage === 'TO_END' ? '终点' : '起点';
-      const action = this.nav.enabled ? '继续' : '开始';
-      return `${action}导航（去${target}）`;
+      if (!this.currentTask) return this.$t('mobileNav.start');
+      const target =
+        this.taskStage === 'TO_END'
+          ? this.$t('h5Location.end')
+          : this.$t('h5Location.start');
+      const action = this.nav.enabled
+        ? this.$t('h5Location.navActionContinue')
+        : this.$t('h5Location.navActionStart');
+      return this.$t('h5Location.navButton', { action, target });
     }
   },
 
@@ -200,6 +210,24 @@ export default {
   },
 
   methods: {
+    formatTaskStatus(status) {
+      if (!status) return '-';
+      const map = {
+        执行中: this.$t('h5Location.status.running'),
+        已完成: this.$t('h5Location.status.done'),
+        已派发: this.$t('h5Location.status.dispatched')
+      };
+      return map[status] || status;
+    },
+    formatTaskType(type) {
+      if (!type) return '-';
+      const map = {
+        导航: this.$t('taskManage.type.nav'),
+        取货: this.$t('taskManage.type.pickup'),
+        送货: this.$t('taskManage.type.delivery')
+      };
+      return map[type] || type;
+    },
     drawerToggle() {
       this.$refs.sideDrawer.show();
     },

@@ -348,21 +348,24 @@ export default {
       xinbiao.switchValue = value;
 
       if (value) {
-        if (list.source) {
-          list.source.forEach((item) => {
-            const beaconId = item.beaconMac || item.beaconId;
-            const existingLayer = list.layer.find(l => l._beaconId === beaconId);
-            if (existingLayer) {
-              scene.addLayer(existingLayer);
-            }
+        if (list.layer.length) {
+          list.layer.forEach((item) => {
+            try {
+              scene.removeLayer(item);
+            } catch (e) {}
           });
+          list.layer = [];
+        }
+
+        if (list.source && list.source.length) {
+          this.xinbiaoSetData({ data: list.source });
         }
       } else {
         if (list.layer.length) {
           list.layer.forEach((item) => {
             scene.removeLayer(item);
           });
-          // 注意：不清空 layer 数组，保留图层以便重新显示
+          list.layer = [];
         }
       }
     }

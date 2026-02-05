@@ -5,17 +5,29 @@ export default {
     return {
       tableLoading: false,
 
-      // 列定义
-      columns: [
-        { title: "对象名称", slot: "objectName" },
-        { title: "所属类型", slot: "belongType" },
-        { title: "绑定地图", slot: "mapNames" },
-        { title: "操作", slot: "action", width: 220 }
-      ]
+      columns: []
+    }
+  },
+
+  created() {
+    this.setColumns();
+  },
+
+  watch: {
+    '$i18n.locale'() {
+      this.setColumns();
     }
   },
 
   methods: {
+    setColumns() {
+      this.columns = [
+        { title: this.$t('productArea.table.objectName'), slot: 'objectName' },
+        { title: this.$t('productArea.table.belongType'), slot: 'belongType' },
+        { title: this.$t('productArea.table.mapNames'), slot: 'mapNames' },
+        { title: this.$t('productArea.table.action'), slot: 'action', width: 220 }
+      ];
+    },
     getList() {
       this.tableLoading = true;
 
@@ -26,8 +38,8 @@ export default {
 
           // 补字段防止 undefined
           this.tableData.forEach(item => {
-            item.mapNames = item.mapNames || '未绑定';
-            item.belongType = item.belongType || '未设置';
+            item.mapNames = item.mapNames || '';
+            item.belongType = item.belongType || '';
           });
         })
         .finally(() => {

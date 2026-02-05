@@ -23,11 +23,19 @@ export default {
         belongType: "",
         iconUrl: "",
         mapIds: []
-      },
+      }
+    }
+  },
 
-      rules: {
-        objectName: [{ required: true, message: "请输入对象名称", trigger: "blur" }],
-        belongType: [{ required: true, message: "请选择所属类型", trigger: "change" }]
+  computed: {
+    rules() {
+      return {
+        objectName: [
+          { required: true, message: this.$t('productArea.validate.objectNameFull'), trigger: 'blur' }
+        ],
+        belongType: [
+          { required: true, message: this.$t('productArea.validate.belongTypeFull'), trigger: 'change' }
+        ]
       }
     }
   },

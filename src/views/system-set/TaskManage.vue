@@ -2,9 +2,9 @@
   <div class="task-manage">
     <Card :bordered="false" dis-hover>
       <div slot="title" class="header">
-        <span class="title">任务管理</span>
+        <span class="title">{{ $t('taskManage.title') }}</span>
         <Button type="primary" icon="md-add" @click="handleOpenAdd">
-          新增任务
+          {{ $t('taskManage.addTask') }}
         </Button>
       </div>
 
@@ -22,7 +22,7 @@
 
         <template slot="taskType" slot-scope="{ row }">
           <Tag :color="getTypeColor(row.taskType)">
-            {{ row.taskType || '-' }}
+            {{ taskTypeLabel(row.taskType) }}
           </Tag>
         </template>
 
@@ -33,7 +33,7 @@
         <!-- 路线 -->
         <template slot="route" slot-scope="{ row }">
           <template v-if="row.startFromCurrent === 1">
-            <span>当前位置</span>
+            <span>{{ $t('taskManage.route.currentPosition') }}</span>
             <template v-if="row.startAreaName">
               → <span>{{ row.startAreaName }}</span>
             </template>
@@ -47,13 +47,13 @@
 
         <template slot="status" slot-scope="{ row }">
           <Tag :color="getStatusColor(row.status)">
-            {{ row.status }}
+            {{ statusLabel(row.status) }}
           </Tag>
         </template>
 
         <template slot="action" slot-scope="{ row }">
-          <Tooltip v-if="isLocked(row)" content="已派发，需先取消">
-            <Button type="primary" size="small" disabled>派发</Button>
+          <Tooltip v-if="isLocked(row)" :content="$t('taskManage.tips.dispatchedNeedCancel')">
+            <Button type="primary" size="small" disabled>{{ $t('taskManage.action.dispatch') }}</Button>
           </Tooltip>
 
           <Button
@@ -62,20 +62,20 @@
             size="small"
             @click="handleOpenDispatch(row)"
           >
-            派发
+            {{ $t('taskManage.action.dispatch') }}
           </Button>
 
           <Button
-            v-if="row.status === '已派发'"
+            v-if="row.status === taskStatusValues.dispatched"
             type="warning"
             size="small"
             @click="handleCancelDispatch(row)"
           >
-            取消
+            {{ $t('base.cancel') }}
           </Button>
 
-          <Tooltip v-if="row.status === '执行中'" content="任务执行中，禁止删除">
-            <Button type="error" size="small" disabled>删除</Button>
+          <Tooltip v-if="row.status === taskStatusValues.running" :content="$t('taskManage.tips.runningNoDelete')">
+            <Button type="error" size="small" disabled>{{ $t('base.delete') }}</Button>
           </Tooltip>
 
           <Button
@@ -84,7 +84,7 @@
             size="small"
             @click="handleDelete(row)"
           >
-            删除
+            {{ $t('base.delete') }}
           </Button>
         </template>
       </Table>
@@ -100,27 +100,31 @@
     </Card>
 
     <!-- ================= 新增任务 ================= -->
-    <Modal v-model="addDialogVisible" title="新增任务">
+    <Modal v-model="addDialogVisible" :title="$t('taskManage.addTask')">
       <Form
         ref="addFormRef"
         :model="addForm"
         :rules="addRules"
         :label-width="120"
       >
-        <FormItem label="任务名称" prop="objectName">
+        <FormItem :label="$t('taskManage.form.name')" prop="objectName">
           <Input v-model="addForm.objectName" />
         </FormItem>
 
-        <FormItem label="所属类型" prop="taskType">
+        <FormItem :label="$t('taskManage.form.type')" prop="taskType">
           <Select v-model="addForm.taskType">
-            <Option value="导航">导航</Option>
-            <Option value="取货">取货</Option>
-            <Option value="送货">送货</Option>
+            <Option
+              v-for="item in taskTypeOptions"
+              :key="item.value"
+              :value="item.value"
+            >
+              {{ item.label }}
+            </Option>
           </Select>
         </FormItem>
 
         <!-- 开始区域（仅送货） -->
-        <FormItem v-if="showStartArea" label="开始区域" prop="startAreaId">
+        <FormItem v-if="showStartArea" :label="$t('taskManage.form.startArea')" prop="startAreaId">
           <Select
             v-model="addForm.startAreaId"
             :placeholder="startAreaPlaceholder"
@@ -136,7 +140,7 @@
         </FormItem>
 
         <!-- 结束区域 -->
-        <FormItem label="结束区域" prop="endAreaId">
+        <FormItem :label="$t('taskManage.form.endArea')" prop="endAreaId">
           <Select v-model="addForm.endAreaId">
             <Option
               v-for="item in areaList"
@@ -149,49 +153,49 @@
         </FormItem>
 
         <!-- 开始时间 -->
-        <FormItem label="开始时间" prop="startTime">
+        <FormItem :label="$t('taskManage.form.startTime')" prop="startTime">
           <DatePicker
             v-model="addForm.startTime"
             type="datetime"
             style="width: 100%;"
-            placeholder="请选择开始时间"
+            :placeholder="$t('taskManage.placeholder.startTime')"
           />
         </FormItem>
 
         <!-- 结束时间 -->
-        <FormItem label="结束时间" prop="endTime">
+        <FormItem :label="$t('taskManage.form.endTime')" prop="endTime">
           <DatePicker
             v-model="addForm.endTime"
             type="datetime"
             style="width: 100%;"
-            placeholder="请选择结束时间"
+            :placeholder="$t('taskManage.placeholder.endTime')"
           />
         </FormItem>
 
         <!-- 备注（已移到最下面） -->
-        <FormItem label="备注" prop="remark">
+        <FormItem :label="$t('taskManage.form.remark')" prop="remark">
           <Input v-model="addForm.remark" type="textarea" :rows="3" />
         </FormItem>
       </Form>
 
       <div slot="footer">
-        <Button @click="addDialogVisible=false">取消</Button>
-        <Button type="primary" @click="submitAdd">确定</Button>
+        <Button @click="addDialogVisible=false">{{ $t('base.cancel') }}</Button>
+        <Button type="primary" @click="submitAdd">{{ $t('base.sure') }}</Button>
       </div>
     </Modal>
 
     <!-- ================= 派发 ================= -->
-    <Modal v-model="dispatchDialogVisible" title="派发任务">
+    <Modal v-model="dispatchDialogVisible" :title="$t('taskManage.dispatchTask')">
       <Form :label-width="100">
-        <FormItem label="路线">
+        <FormItem :label="$t('taskManage.form.route')">
           <Input :value="dispatchRouteText" disabled />
         </FormItem>
 
-        <FormItem label="备注">
+        <FormItem :label="$t('taskManage.form.remark')">
           <Input :value="currentDispatchRow?.remark" type="textarea" disabled />
         </FormItem>
 
-        <FormItem label="选择员工">
+        <FormItem :label="$t('taskManage.form.employee')">
           <Select v-model="dispatchForm.employees" multiple>
             <Option
               v-for="name in employeeList"
@@ -205,8 +209,8 @@
       </Form>
 
       <div slot="footer">
-        <Button @click="dispatchDialogVisible=false">取消</Button>
-        <Button type="primary" @click="submitDispatch">确定</Button>
+        <Button @click="dispatchDialogVisible=false">{{ $t('base.cancel') }}</Button>
+        <Button type="primary" @click="submitDispatch">{{ $t('base.sure') }}</Button>
       </div>
     </Modal>
   </div>
@@ -216,6 +220,17 @@
 import taskApi from '@/api/path/task'
 import productAreaApi from '@/api/path/product-area'
 import userApi from '@/api/path/user'
+
+const TASK_TYPE = {
+  nav: '导航',
+  pickup: '取货',
+  delivery: '送货'
+}
+
+const TASK_STATUS = {
+  dispatched: '已派发',
+  running: '执行中'
+}
 
 export default {
   name: 'TaskManage',
@@ -233,6 +248,8 @@ export default {
 
       areaList: [],
       employeeList: [],
+      taskTypeValues: TASK_TYPE,
+      taskStatusValues: TASK_STATUS,
 
       addForm: {
         objectName: '',
@@ -247,41 +264,50 @@ export default {
         endTime: null
       },
 
-      addRules: {
-        objectName: [{ required: true, message: '请输入对象名称' }],
-        taskType: [{ required: true, message: '请选择类型' }],
-        endAreaId: [{ required: true, message: '请选择结束区域' }]
-      },
-
       currentDispatchRow: null,
-      dispatchForm: { employees: [] },
-
-      columns: [
-        { type: 'index', width: 60, align: 'center' },
-        { title: '对象名称', slot: 'objectName', align: 'center' },
-        { title: '类型', slot: 'taskType', align: 'center' },
-        { title: '备注', slot: 'remark', align: 'center' },
-        { title: '路线', slot: 'route', align: 'center' },
-        { title: '状态', slot: 'status', align: 'center' },
-        { title: '操作', slot: 'action', align: 'center', width: 220 }
-      ]
+      dispatchForm: { employees: [] }
     }
   },
 
   computed: {
+    columns() {
+      return [
+        { type: 'index', width: 60, align: 'center' },
+        { title: this.$t('taskManage.table.objectName'), slot: 'objectName', align: 'center' },
+        { title: this.$t('taskManage.table.type'), slot: 'taskType', align: 'center' },
+        { title: this.$t('taskManage.table.remark'), slot: 'remark', align: 'center' },
+        { title: this.$t('taskManage.table.route'), slot: 'route', align: 'center' },
+        { title: this.$t('taskManage.table.status'), slot: 'status', align: 'center' },
+        { title: this.$t('base.option'), slot: 'action', align: 'center', width: 220 }
+      ]
+    },
+    taskTypeOptions() {
+      return [
+        { value: this.taskTypeValues.nav, label: this.$t('taskManage.type.nav') },
+        { value: this.taskTypeValues.pickup, label: this.$t('taskManage.type.pickup') },
+        { value: this.taskTypeValues.delivery, label: this.$t('taskManage.type.delivery') }
+      ]
+    },
+    addRules() {
+      return {
+        objectName: [{ required: true, message: this.$t('taskManage.validate.name') }],
+        taskType: [{ required: true, message: this.$t('taskManage.validate.type') }],
+        endAreaId: [{ required: true, message: this.$t('taskManage.validate.endArea') }]
+      }
+    },
     showStartArea() {
-      return this.addForm.taskType === '送货'
+      return this.addForm.taskType === this.taskTypeValues.delivery
     },
     startAreaPlaceholder() {
-      return this.addForm.taskType === '送货'
-        ? '从当前位置开始'
-        : '请选择'
+      return this.addForm.taskType === this.taskTypeValues.delivery
+        ? this.$t('taskManage.route.fromCurrent')
+        : this.$t('base.select')
     },
     dispatchRouteText() {
       if (!this.currentDispatchRow) return ''
       const row = this.currentDispatchRow
       const parts = []
-      if (row.startFromCurrent === 1) parts.push('当前位置')
+      if (row.startFromCurrent === 1) parts.push(this.$t('taskManage.route.currentPosition'))
       if (row.startAreaName) parts.push(row.startAreaName)
       parts.push(row.endAreaName)
       return parts.join(' → ')
@@ -296,21 +322,32 @@ export default {
 
   methods: {
     getTypeColor(type) {
-      if (type === '导航') return 'blue'
-      if (type === '取货') return 'orange'
-      if (type === '送货') return 'purple'
+      if (type === this.taskTypeValues.nav) return 'blue'
+      if (type === this.taskTypeValues.pickup) return 'orange'
+      if (type === this.taskTypeValues.delivery) return 'purple'
       return 'default'
     },
+    taskTypeLabel(type) {
+      if (type === this.taskTypeValues.nav) return this.$t('taskManage.type.nav')
+      if (type === this.taskTypeValues.pickup) return this.$t('taskManage.type.pickup')
+      if (type === this.taskTypeValues.delivery) return this.$t('taskManage.type.delivery')
+      return type || '-'
+    },
     isLocked(row) {
-      return row.status === '已派发' || row.status === '执行中'
+      return row.status === this.taskStatusValues.dispatched || row.status === this.taskStatusValues.running
     },
     rowClassName(row) {
       return this.isLocked(row) ? 'row-disabled' : ''
     },
     getStatusColor(status) {
-      if (status === '已派发') return 'orange'
-      if (status === '执行中') return 'green'
+      if (status === this.taskStatusValues.dispatched) return 'orange'
+      if (status === this.taskStatusValues.running) return 'green'
       return 'default'
+    },
+    statusLabel(status) {
+      if (status === this.taskStatusValues.dispatched) return this.$t('taskManage.status.dispatched')
+      if (status === this.taskStatusValues.running) return this.$t('taskManage.status.running')
+      return status || '-'
     },
     fetchAreaList() {
       productAreaApi.getProductAreaList().then(res => {
@@ -363,7 +400,7 @@ export default {
         this.addForm.endAreaName = endArea?.objectName || ''
 
         taskApi.taskAdd(this.addForm).then(() => {
-          this.$Message.success('新增成功')
+          this.$Message.success(this.$t('taskManage.tips.addSuccess'))
           this.addDialogVisible = false
           this.fetchData()
         })
@@ -376,31 +413,33 @@ export default {
     },
     submitDispatch() {
       if (!this.dispatchForm.employees.length) {
-        this.$Message.error('请至少选择一名员工')
+        this.$Message.error(this.$t('taskManage.tips.selectEmployee'))
         return
       }
       taskApi.taskDispatch({
         taskId: this.currentDispatchRow.id,
         employees: this.dispatchForm.employees
       }).then(() => {
-        this.$Message.success('派发成功')
+        this.$Message.success(this.$t('taskManage.tips.dispatchSuccess'))
         this.dispatchDialogVisible = false
         this.fetchData()
       })
     },
     handleCancelDispatch(row) {
       taskApi.taskCancel({ taskId: row.id }).then(() => {
-        this.$Message.success('已取消任务')
+        this.$Message.success(this.$t('taskManage.tips.cancelSuccess'))
         this.fetchData()
       })
     },
     handleDelete(row) {
       this.$Modal.confirm({
-        title: '确认删除？',
-        content: '是否删除该任务？',
+        title: this.$t('taskManage.tips.deleteConfirmTitle'),
+        content: this.$t('taskManage.tips.deleteConfirmContent'),
+        okText: this.$t('base.sure'),
+        cancelText: this.$t('base.cancel'),
         onOk: () => {
           taskApi.taskDelete({ id: row.id }).then(() => {
-            this.$Message.success('删除成功')
+            this.$Message.success(this.$t('base.deleteSuccess'))
             this.fetchData()
           })
         }

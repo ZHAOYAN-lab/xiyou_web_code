@@ -27,7 +27,7 @@ export default [
     path: '/h5_location',
     name: 'h5_location',
     meta: {
-      title: '定位信息',
+      title: i18n.messages[i18n.locale].h5Location.title,
       hideInMenu: true
     },
     component: () => import('@/views/location-manage/h5-location/index')
@@ -192,19 +192,19 @@ export default [
       {
         path: 'task_manage',
         name: 'TaskManage',
-        meta: { title: '任务管理', icon: 'md-list-box' },
+        meta: { title: i18n.messages[i18n.locale].sideBarMenu.taskManage, icon: 'md-list-box' },
         component: () => import('@/views/system-set/TaskManage.vue')
       },
       {
         path: 'product_area',
         name: 'product_area',
-        meta: { title: '区域管理', icon: 'md-apps' },
+        meta: { title: i18n.messages[i18n.locale].sideBarMenu.productArea, icon: 'md-apps' },
         component: () => import('@/views/system-set/product-area/index.vue')
       },
       {
         path: 'account_create',
         name: 'account_create',
-        meta: { title: '账号管理', icon: 'md-person-add' },
+        meta: { title: i18n.messages[i18n.locale].sideBarMenu.accountManage, icon: 'md-person-add' },
         component: () => import('@/views/system-set/account-create')
       }
     ]
