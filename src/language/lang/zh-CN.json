@@ -151,7 +151,8 @@
     "serviceSet": "服务管理",
     "taskManage": "任务管理",
     "productArea": "区域管理",
-    "accountManage": "账号管理"
+    "accountManage": "账号管理",
+    "billReport": "数据导出"
   },
   "login": {
     "tab": "账户密码登录",
@@ -576,6 +577,78 @@
       "belongTypeFull": "请选择所属类型"
     },
     "defaultName": "该区域"
+  },
+  "billReport": {
+    "title": "区域热点账票",
+    "subtitle": "围绕区域内人員/物料密度、电子围栏告警频度、滞留/放置时间与活动/搬送路线进行统计分析，并识别热点区域。",
+    "filter": {
+      "range": "统计区间"
+    },
+    "action": {
+      "refresh": "刷新账票",
+      "export": "导出账票",
+      "exportPdf": "导出PDF",
+      "exportExcel": "导出Excel"
+    },
+    "analysis": {
+      "composite": "综合热点",
+      "people": "人员密度",
+      "material": "物料密度",
+      "alarm": "围栏告警",
+      "stay": "滞留/放置",
+      "route": "活动/搬送路线"
+    },
+    "summary": {
+      "hotspot": "高热区域",
+      "density": "密度峰值",
+      "alarm": "电子围栏告警",
+      "stayRoute": "滞留/搬送"
+    },
+    "panel": {
+      "distribution": "热点分布图",
+      "ranking": "区域热点排行",
+      "alarmTrend": "告警趋势",
+      "routeFlow": "搬送路线排行",
+      "detail": "区域热点明细",
+      "densityCompare": "人流/物料密度对比",
+      "routeNetwork": "搬送路径网络"
+    },
+    "table": {
+      "area": "区域",
+      "type": "类型",
+      "map": "地图",
+      "peopleDensity": "人员密度指数",
+      "materialDensity": "物料密度指数",
+      "alarm": "围栏告警",
+      "stayHold": "滞留/放置(分钟)",
+      "route": "路线活跃度",
+      "score": "热点分",
+      "level": "等级"
+    },
+    "type": {
+      "goods": "商品区域",
+      "passage": "通路区域",
+      "general": "综合区域"
+    },
+    "level": {
+      "high": "重点关注",
+      "medium": "持续观察",
+      "stable": "状态平稳"
+    },
+    "export": {
+      "fileName": "区域热点账票"
+    },
+    "unit": {
+      "routes": "条路线"
+    },
+    "text": {
+      "none": "无",
+      "unassigned": "未命名区域",
+      "generatedAt": "生成时间",
+      "mapLabel": "当前地图",
+      "unresolved": "未处理告警",
+      "areaUnit": "个区域"
+    }
   },
   "mobileNav": {
     "start": "开始导航",

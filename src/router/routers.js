@@ -210,6 +210,27 @@ export default [
     ]
   },
 
+  /* ======================================
+   * 账票分析
+   * ====================================== */
+  {
+    path: '/bill',
+    name: 'bill',
+    meta: {
+      icon: 'ios-stats-outline',
+      title: i18n.messages[i18n.locale].sideBarMenu.billReport
+    },
+    component: Layout,
+    children: [
+      {
+        path: 'bill_report',
+        name: 'bill_report',
+        meta: { title: i18n.messages[i18n.locale].sideBarMenu.billReport },
+        component: () => import('@/views/bill-report/page/index.vue')
+      }
+    ]
+  },
+
   /* =============================================================
    * 独立手机导航页面（无侧边栏）
    * ============================================================= */

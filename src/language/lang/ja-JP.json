@@ -368,7 +368,8 @@
     "warning": "アラート管理",
     "taskManage": "タスク管理",
     "productArea": "エリア管理",
-    "accountManage": "アカウント管理"
+    "accountManage": "アカウント管理",
+    "billReport": "帳票"
   },
   "trackingManage": {
     "title": "ルート管理",
@@ -569,6 +570,78 @@
       "belongTypeFull": "所属種類を選択してください"
     },
     "defaultName": "このエリア"
+  },
+  "billReport": {
+    "title": "エリアホットスポット帳票",
+    "subtitle": "エリア内の人員/物料密度、電子フェンスのアラーム頻度、滞留/放置時間、活動/搬送ルートを統計分析し、ホットスポットを可視化します。",
+    "filter": {
+      "range": "集計期間"
+    },
+    "action": {
+      "refresh": "帳票を更新",
+      "export": "帳票を出力",
+      "exportPdf": "PDF出力",
+      "exportExcel": "Excel出力"
+    },
+    "analysis": {
+      "composite": "総合ホットスポット",
+      "people": "人員密度",
+      "material": "物料密度",
+      "alarm": "フェンスアラーム",
+      "stay": "滞留/放置",
+      "route": "活動/搬送ルート"
+    },
+    "summary": {
+      "hotspot": "高負荷エリア",
+      "density": "密度ピーク",
+      "alarm": "フェンスアラーム",
+      "stayRoute": "滞留/搬送"
+    },
+    "panel": {
+      "distribution": "ホットスポット分布",
+      "ranking": "エリアランキング",
+      "alarmTrend": "アラーム推移",
+      "routeFlow": "搬送ルートランキング",
+      "detail": "エリア明細",
+      "densityCompare": "人流/物料密度比較",
+      "routeNetwork": "搬送ルートネットワーク"
+    },
+    "table": {
+      "area": "エリア",
+      "type": "種類",
+      "map": "地図",
+      "peopleDensity": "人員密度指数",
+      "materialDensity": "物料密度指数",
+      "alarm": "フェンスアラーム",
+      "stayHold": "滞留/放置(分)",
+      "route": "ルート活性度",
+      "score": "ホットスコア",
+      "level": "レベル"
+    },
+    "type": {
+      "goods": "商品エリア",
+      "passage": "通路エリア",
+      "general": "総合エリア"
+    },
+    "level": {
+      "high": "重点監視",
+      "medium": "継続観察",
+      "stable": "安定"
+    },
+    "export": {
+      "fileName": "エリアホットスポット帳票"
+    },
+    "unit": {
+      "routes": "ルート"
+    },
+    "text": {
+      "none": "なし",
+      "unassigned": "未命名エリア",
+      "generatedAt": "出力時刻",
+      "mapLabel": "対象地図",
+      "unresolved": "未処理アラーム",
+      "areaUnit": "エリア"
+    }
   },
   "mobileNav": {
     "start": "ナビ開始",
