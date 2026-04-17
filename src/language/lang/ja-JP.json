@@ -369,7 +369,7 @@
     "taskManage": "タスク管理",
     "productArea": "エリア管理",
     "accountManage": "アカウント管理",
-    "billReport": "帳票"
+    "billReport": "データ分析"
   },
   "trackingManage": {
     "title": "ルート管理",
@@ -572,14 +572,14 @@
     "defaultName": "このエリア"
   },
   "billReport": {
-    "title": "エリアホットスポット帳票",
-    "subtitle": "エリア内の人員/物料密度、電子フェンスのアラーム頻度、滞留/放置時間、活動/搬送ルートを統計分析し、ホットスポットを可視化します。",
+    "title": "データ分析",
+    "subtitle": "エリア内の人員／物料の密度、電子フェンスのアラーム発生頻度、滞留／放置時間、活動／搬送経路などのデータを統計・分析し、ホットスポットを可視化・特定します。",
     "filter": {
       "range": "集計期間"
     },
     "action": {
-      "refresh": "帳票を更新",
-      "export": "帳票を出力",
+      "refresh": "データを更新",
+      "export": "データを出力",
       "exportPdf": "PDF出力",
       "exportExcel": "Excel出力"
     },
@@ -592,19 +592,18 @@
       "route": "活動/搬送ルート"
     },
     "summary": {
-      "hotspot": "高負荷エリア",
-      "density": "密度ピーク",
-      "alarm": "フェンスアラーム",
-      "stayRoute": "滞留/搬送"
+      "hotspot": "総合ホットスポット",
+      "peoplePeak": "人員密度ピーク",
+      "materialPeak": "物料密度ピーク",
+      "alarmFrequency": "フェンスアラーム",
+      "stayHoldPeak": "滞留/放置ピーク"
     },
     "panel": {
       "distribution": "ホットスポット分布",
-      "ranking": "エリアランキング",
-      "alarmTrend": "アラーム推移",
+      "hotspotIdentify": "ホットスポット識別結果",
+      "alarmRanking": "フェンスアラーム頻度ランキング",
       "routeFlow": "搬送ルートランキング",
-      "detail": "エリア明細",
-      "densityCompare": "人流/物料密度比較",
-      "routeNetwork": "搬送ルートネットワーク"
+      "detail": "エリアデータ明細"
     },
     "table": {
       "area": "エリア",
@@ -613,8 +612,12 @@
       "peopleDensity": "人員密度指数",
       "materialDensity": "物料密度指数",
       "alarm": "フェンスアラーム",
+      "alarmCount": "アラーム件数",
+      "alarmFrequency": "平均アラーム頻度",
       "stayHold": "滞留/放置(分)",
-      "route": "ルート活性度",
+      "stayMinutes": "滞留時間(分)",
+      "holdMinutes": "放置時間(分)",
+      "route": "搬送ルート数",
       "score": "ホットスコア",
       "level": "レベル"
     },
@@ -629,7 +632,7 @@
       "stable": "安定"
     },
     "export": {
-      "fileName": "エリアホットスポット帳票"
+      "fileName": "データ分析"
     },
     "unit": {
       "routes": "ルート"
@@ -640,7 +643,16 @@
       "generatedAt": "出力時刻",
       "mapLabel": "対象地図",
       "unresolved": "未処理アラーム",
-      "areaUnit": "エリア"
+      "areaUnit": "エリア",
+      "realDataOnly": "実データ集計のみ表示",
+      "sourceScope": "ソース: 軌跡 / アラーム / タスク",
+      "scoreRule": "ホットスコアは人員密度、物料密度、フェンスアラーム、滞留/放置時間、搬送ルートから算出されます",
+      "alarmRateUnit": "件/時間",
+      "alarmRateDayUnit": "件/日",
+      "alarmRateTip": "アラーム総件数順で、平均値も補足表示しています",
+      "alarmUnit": "件",
+      "routeTip": "実軌跡の遷移とタスク起終点を組み合わせて集計",
+      "routeCount": "ルート発生数"
     }
   },
   "mobileNav": {

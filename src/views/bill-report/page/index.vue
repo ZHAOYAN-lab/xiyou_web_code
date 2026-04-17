@@ -1,52 +1,35 @@
 <template>
-  <div ref="pageRoot" class="bill-report-page">
-    <Card class="report-hero" :bordered="false" dis-hover>
-      <div class="hero-wrap">
-        <div class="hero-copy">
-          <p class="hero-eyebrow">{{ $t('sideBarMenu.billReport') }}</p>
-          <h2 class="hero-title">{{ $t('billReport.title') }}</h2>
-          <p class="hero-subtitle">{{ $t('billReport.subtitle') }}</p>
-          <div class="hero-meta">
-            <span>
-              <Icon type="ios-pulse" />
-              {{ $t('billReport.text.generatedAt') }}: {{ generatedLabel }}
-            </span>
-            <span>
-              <Icon type="ios-pin" />
-              {{ $t('billReport.text.mapLabel') }}: {{ currentMapLabel }}
-            </span>
-            <span>
-              <Icon type="ios-calendar-outline" />
-              {{ selectedRangeText }}
-            </span>
-          </div>
+  <div class="data-analysis-page">
+    <Card class="toolbar-card" :bordered="false" dis-hover>
+      <div class="toolbar-row">
+        <div class="title-block">
+          <h2 class="page-title">{{ $t('billReport.title') }}</h2>
+          <p class="page-subtitle">{{ pageSubtitle }}</p>
         </div>
 
-        <div class="hero-panel">
-          <div class="filter-grid">
-            <div class="filter-item">
-              <label>{{ $t('base.map') }}</label>
-              <sl-map-cascader
-                ref="mapCascader"
-                @onChange="handleMapChange"
-                @onSetMapData="handleMapReady"
-              />
-            </div>
-
-            <div class="filter-item wide">
-              <label>{{ $t('billReport.filter.range') }}</label>
-              <DatePicker
-                v-model="filters.dateRange"
-                transfer
-                :editable="false"
-                type="datetimerange"
-                format="yyyy-MM-dd HH:mm:ss"
-                class="filter-range"
-              ></DatePicker>
-            </div>
+        <div class="toolbar-controls">
+          <div class="control-group map-group">
+            <span class="control-label">{{ $t('base.map') }}</span>
+            <sl-map-cascader
+              ref="mapCascader"
+              @onChange="handleMapChange"
+              @onSetMapData="handleMapReady"
+            />
           </div>
 
-          <div class="hero-actions">
+          <div class="control-group range-group">
+            <span class="control-label">{{ $t('billReport.filter.range') }}</span>
+            <DatePicker
+              v-model="filters.dateRange"
+              transfer
+              :editable="false"
+              type="datetimerange"
+              format="yyyy-MM-dd HH:mm:ss"
+              class="range-picker"
+            ></DatePicker>
+          </div>
+
+          <div class="toolbar-actions">
             <Button type="primary" :loading="loading" @click="loadReport">
               {{ $t('billReport.action.refresh') }}
             </Button>
@@ -55,127 +38,92 @@
           </div>
         </div>
       </div>
+
+      <div class="toolbar-meta">
+        <span class="meta-text">{{ $t('billReport.text.mapLabel') }}: {{ currentMapLabel }}</span>
+        <span class="meta-divider"></span>
+        <span class="meta-text">{{ $t('billReport.text.generatedAt') }}: {{ generatedLabel }}</span>
+      </div>
     </Card>
 
-    <div class="metric-switch">
-      <button
-        v-for="item in metricTabs"
-        :key="item.value"
-        type="button"
-        class="metric-pill"
-        :class="{ active: activeMetric === item.value }"
-        @click="activeMetric = item.value"
-      >
-        {{ item.label }}
-      </button>
-    </div>
-
     <div class="summary-grid">
-      <div v-for="card in summaryCards" :key="card.key" class="summary-card" :class="card.key">
-        <div class="summary-icon">
-          <Icon :type="card.icon" />
-        </div>
+      <div v-for="card in summaryCards" :key="card.key" class="summary-card">
         <p class="summary-label">{{ card.label }}</p>
         <p class="summary-value">{{ card.value }}</p>
         <p class="summary-desc">{{ card.desc }}</p>
       </div>
     </div>
 
-    <div class="main-grid">
-      <Card class="surface-card heat-panel" :bordered="false" dis-hover>
-        <div slot="title" class="panel-title-row">
+    <div class="content-grid">
+      <Card class="surface-card" :bordered="false" dis-hover>
+        <div slot="title" class="panel-head">
           <div>
-            <p class="panel-title">{{ $t('billReport.panel.distribution') }}</p>
-            <p class="panel-tip">{{ activeMetricLabel }}</p>
+            <p class="panel-title">{{ localizedText('热点区域', 'ホットスポット') }}</p>
           </div>
         </div>
 
-        <div v-if="heatNodes.length" class="heat-layout">
-          <div class="heat-stage">
-            <div class="heat-grid"></div>
-
-            <svg class="heat-route-layer" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <line
-                v-for="item in heatRoutes"
-                :key="item.key"
-                :x1="item.start.left"
-                :y1="item.start.top"
-                :x2="item.end.left"
-                :y2="item.end.top"
-                class="heat-route"
-                :style="{ strokeWidth: `${item.strokeWidth}px` }"
-              />
-            </svg>
-
-            <div
-              v-for="item in heatNodes"
-              :key="item.areaId"
-              class="heat-node-wrap"
-              :style="{ left: `${item.left}%`, top: `${item.top}%` }"
-            >
-              <div class="heat-node" :class="item.levelKey" :style="{ width: `${item.size}px`, height: `${item.size}px` }">
-                <span>{{ metricValueText(item) }}</span>
-              </div>
-              <p v-if="item.showLabel" class="heat-node-label">{{ item.objectName }}</p>
-            </div>
-          </div>
-
-          <div class="heat-side">
-            <div class="legend-box">
-              <div class="legend-item">
-                <span class="legend-dot high"></span>
-                <span>{{ $t('billReport.level.high') }}</span>
-              </div>
-              <div class="legend-item">
-                <span class="legend-dot medium"></span>
-                <span>{{ $t('billReport.level.medium') }}</span>
-              </div>
-              <div class="legend-item">
-                <span class="legend-dot stable"></span>
-                <span>{{ $t('billReport.level.stable') }}</span>
-              </div>
-            </div>
-
-            <div class="focus-list">
-              <div v-for="(item, index) in topFocusAreas" :key="item.areaId" class="focus-card">
-                <span class="focus-rank">{{ formatRank(index + 1) }}</span>
-                <div class="focus-copy">
-                  <p class="focus-name">{{ item.objectName }}</p>
-                  <p class="focus-text">{{ focusReasonText(item) }}</p>
+        <div v-if="hotspotRanking.length" class="area-list">
+          <div v-for="(item, index) in hotspotRanking" :key="item.areaId" class="area-item">
+            <div class="area-item-head">
+              <div class="area-main">
+                <span class="area-rank">{{ formatRank(index + 1) }}</span>
+                <div class="area-copy">
+                  <p class="area-name">{{ item.displayName }}</p>
+                  <p class="area-meta">
+                    {{ areaTypeLabel(item.areaType) }} / {{ $t(`billReport.level.${item.levelKey}`) }}
+                  </p>
                 </div>
-                <Tag :color="levelColor(item.levelKey)">{{ $t(`billReport.level.${item.levelKey}`) }}</Tag>
+              </div>
+
+              <div class="score-box">
+                <span class="score-label">{{ localizedText('热点评分', 'ホットスコア') }}</span>
+                <strong class="score-value">{{ item.hotspotScore }}</strong>
               </div>
             </div>
+
+            <div class="metric-bar">
+              <div class="metric-bar-fill score-fill" :style="{ width: `${scoreBarWidth(item)}%` }"></div>
+            </div>
+
+            <div class="metric-chip-list">
+              <span
+                v-for="metric in areaMetricChips(item)"
+                :key="`${item.areaId}-${metric.key}`"
+                class="metric-chip"
+              >
+                <strong>{{ metric.label }}</strong>
+                <span>{{ metric.value }}</span>
+              </span>
+            </div>
+
+            <p class="area-reason">{{ hotspotReasonText(item) }}</p>
           </div>
         </div>
 
         <sl-empty v-else />
       </Card>
 
-      <div class="aside-stack">
-        <Card class="surface-card rank-panel" :bordered="false" dis-hover>
-          <div slot="title" class="panel-title-row">
+      <div class="side-grid">
+        <Card class="surface-card side-panel" :bordered="false" dis-hover>
+          <div slot="title" class="panel-head">
             <div>
-              <p class="panel-title">{{ $t('billReport.panel.ranking') }}</p>
-              <p class="panel-tip">{{ activeMetricLabel }}</p>
+              <p class="panel-title">{{ localizedText('电子围栏告警', '電子フェンスアラーム') }}</p>
+              <p class="panel-tip">{{ $t('billReport.text.alarmRateTip') }}</p>
             </div>
           </div>
 
-          <div v-if="rankingItems.length" class="ranking-list">
-            <div v-for="(item, index) in rankingItems" :key="item.areaId" class="ranking-item">
-              <div class="ranking-head">
-                <div class="ranking-name-wrap">
-                  <span class="ranking-index">{{ formatRank(index + 1) }}</span>
-                  <span class="ranking-name">{{ item.objectName }}</span>
-                </div>
-                <span class="ranking-value">{{ metricValueText(item) }}</span>
+          <div v-if="alarmRanking.length" class="metric-list">
+            <div v-for="item in alarmRanking" :key="`alarm-${item.areaId}`" class="metric-item">
+              <div class="metric-item-head">
+                <span class="metric-name">{{ item.displayName }}</span>
+                <span class="metric-value">{{ alarmCountText(item) }}</span>
               </div>
-              <div class="ranking-bar-track">
-                <div class="ranking-bar-fill" :style="{ width: `${rankingWidth(item)}%` }"></div>
+              <div class="metric-bar">
+                <div class="metric-bar-fill danger-fill" :style="{ width: `${alarmBarWidth(item)}%` }"></div>
               </div>
-              <div class="ranking-meta">
-                <span>{{ areaTypeLabel(item.areaType) }}</span>
-                <span>{{ $t(`billReport.level.${item.levelKey}`) }}</span>
+              <div class="metric-foot">
+                <span>{{ alarmAverageText(item) }}</span>
+                <span>{{ $t('billReport.text.unresolved') }}: {{ item.unresolvedAlarmCount }}</span>
               </div>
             </div>
           </div>
@@ -183,51 +131,72 @@
           <sl-empty v-else />
         </Card>
 
-        <Card class="surface-card chart-panel" :bordered="false" dis-hover>
-          <div slot="title" class="panel-title-row">
+        <Card class="surface-card side-panel" :bordered="false" dis-hover>
+          <div slot="title" class="panel-head">
             <div>
-              <p class="panel-title">{{ $t('billReport.panel.alarmTrend') }}</p>
-              <p class="panel-tip">{{ selectedRangeText }}</p>
+              <p class="panel-title">{{ localizedText('滞留 / 放置', '滞留 / 放置') }}</p>
+              <p class="panel-tip">
+                {{
+                  localizedText(
+                    '按滞留和放置总时长排序。',
+                    '滞留時間と放置時間の合計で並べています。'
+                  )
+                }}
+              </p>
             </div>
           </div>
 
-          <div v-if="report.trends.length" :id="chartIds.trend" class="chart-box small"></div>
+          <div v-if="stayRanking.length" class="metric-list">
+            <div v-for="item in stayRanking" :key="`stay-${item.areaId}`" class="metric-item">
+              <div class="metric-item-head">
+                <span class="metric-name">{{ item.displayName }}</span>
+                <span class="metric-value">{{ stayHoldText(item) }}</span>
+              </div>
+              <div class="metric-bar">
+                <div class="metric-bar-fill stay-fill" :style="{ width: `${stayBarWidth(item)}%` }"></div>
+              </div>
+              <div class="metric-foot">
+                <span>{{ $t('billReport.table.stayMinutes') }}: {{ item.stayMinutes }}</span>
+                <span>{{ $t('billReport.table.holdMinutes') }}: {{ item.holdMinutes }}</span>
+              </div>
+            </div>
+          </div>
+
+          <sl-empty v-else />
+        </Card>
+
+        <Card class="surface-card side-panel" :bordered="false" dis-hover>
+          <div slot="title" class="panel-head">
+            <div>
+              <p class="panel-title">{{ localizedText('活动 / 搬送路线', '活動 / 搬送ルート') }}</p>
+              <p class="panel-tip">{{ $t('billReport.text.routeTip') }}</p>
+            </div>
+          </div>
+
+          <div v-if="routeRanking.length" class="route-list">
+            <div
+              v-for="(item, index) in routeRanking"
+              :key="`${item.startAreaId}-${item.endAreaId}`"
+              class="route-item"
+            >
+              <div class="route-head">
+                <span class="route-rank">{{ formatRank(index + 1) }}</span>
+                <span class="route-count">{{ item.count }}</span>
+              </div>
+              <p class="route-path">{{ item.startDisplayName }} -> {{ item.endDisplayName }}</p>
+            </div>
+          </div>
+
           <sl-empty v-else />
         </Card>
       </div>
     </div>
 
-    <div class="chart-grid">
-      <Card class="surface-card chart-panel" :bordered="false" dis-hover>
-        <div slot="title" class="panel-title-row">
-          <div>
-            <p class="panel-title">{{ $t('billReport.panel.densityCompare') }}</p>
-            <p class="panel-tip">{{ $t('billReport.analysis.people') }} / {{ $t('billReport.analysis.material') }}</p>
-          </div>
-        </div>
-
-        <div v-if="report.areas.length" :id="chartIds.density" class="chart-box"></div>
-        <sl-empty v-else />
-      </Card>
-
-      <Card class="surface-card chart-panel" :bordered="false" dis-hover>
-        <div slot="title" class="panel-title-row">
-          <div>
-            <p class="panel-title">{{ $t('billReport.panel.routeNetwork') }}</p>
-            <p class="panel-tip">{{ $t('billReport.panel.routeFlow') }}</p>
-          </div>
-        </div>
-
-        <div v-if="report.routes.length" :id="chartIds.route" class="chart-box"></div>
-        <sl-empty v-else />
-      </Card>
-    </div>
-
     <Card class="surface-card table-panel" :bordered="false" dis-hover>
-      <div slot="title" class="panel-title-row">
+      <div slot="title" class="panel-head">
         <div>
           <p class="panel-title">{{ $t('billReport.panel.detail') }}</p>
-          <p class="panel-tip">{{ `${report.areas.length} ${$t('billReport.text.areaUnit')}` }}</p>
+          <p class="panel-tip">{{ detailCountText }}</p>
         </div>
       </div>
 
@@ -235,82 +204,67 @@
     </Card>
 
     <div ref="pdfSheet" class="pdf-sheet">
-      <div class="pdf-inner">
-        <div class="pdf-head">
-          <div>
-            <p class="pdf-title">{{ $t('billReport.title') }}</p>
-            <p class="pdf-subtitle">{{ $t('billReport.subtitle') }}</p>
-          </div>
-          <div class="pdf-meta">
-            <p>{{ $t('billReport.text.generatedAt') }}: {{ generatedLabel }}</p>
-            <p>{{ $t('billReport.text.mapLabel') }}: {{ currentMapLabel }}</p>
-            <p>{{ selectedRangeText }}</p>
-          </div>
+      <div class="pdf-head">
+        <div>
+          <p class="pdf-title">{{ $t('billReport.title') }}</p>
+          <p class="pdf-subtitle">{{ pageSubtitle }}</p>
         </div>
-
-        <div class="pdf-summary-grid">
-          <div v-for="card in summaryCards" :key="`pdf-${card.key}`" class="pdf-summary-card">
-            <p class="pdf-summary-label">{{ card.label }}</p>
-            <p class="pdf-summary-value">{{ card.value }}</p>
-            <p class="pdf-summary-desc">{{ card.desc }}</p>
-          </div>
+        <div class="pdf-meta">
+          <p>{{ $t('billReport.text.mapLabel') }}: {{ currentMapLabel }}</p>
+          <p>{{ $t('billReport.filter.range') }}: {{ selectedRangeText }}</p>
+          <p>{{ $t('billReport.text.generatedAt') }}: {{ generatedLabel }}</p>
         </div>
-
-        <table class="pdf-table">
-          <thead>
-            <tr>
-              <th>{{ $t('billReport.table.area') }}</th>
-              <th>{{ $t('billReport.table.type') }}</th>
-              <th>{{ $t('billReport.table.peopleDensity') }}</th>
-              <th>{{ $t('billReport.table.materialDensity') }}</th>
-              <th>{{ $t('billReport.table.alarm') }}</th>
-              <th>{{ $t('billReport.table.stayHold') }}</th>
-              <th>{{ $t('billReport.table.route') }}</th>
-              <th>{{ $t('billReport.table.score') }}</th>
-              <th>{{ $t('billReport.table.level') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in report.areas" :key="`pdf-row-${item.areaId}`">
-              <td>{{ item.objectName }}</td>
-              <td>{{ areaTypeLabel(item.areaType) }}</td>
-              <td>{{ formatNumber(item.peopleDensity, 2) }}</td>
-              <td>{{ formatNumber(item.materialDensity, 2) }}</td>
-              <td>{{ item.alarmCount }}</td>
-              <td>{{ `${item.stayMinutes}/${item.holdMinutes}` }}</td>
-              <td>{{ item.routeCount }}</td>
-              <td>{{ item.hotspotScore }}</td>
-              <td>{{ $t(`billReport.level.${item.levelKey}`) }}</td>
-            </tr>
-          </tbody>
-        </table>
       </div>
+
+      <div class="pdf-summary-grid">
+        <div v-for="card in summaryCards" :key="`pdf-${card.key}`" class="pdf-summary-card">
+          <p class="pdf-summary-label">{{ card.label }}</p>
+          <p class="pdf-summary-value">{{ card.value }}</p>
+          <p class="pdf-summary-desc">{{ card.desc }}</p>
+        </div>
+      </div>
+
+      <table class="pdf-table">
+        <thead>
+          <tr>
+            <th>{{ $t('billReport.table.area') }}</th>
+            <th>{{ $t('billReport.table.type') }}</th>
+            <th>{{ $t('billReport.table.map') }}</th>
+            <th>{{ $t('billReport.table.peopleDensity') }}</th>
+            <th>{{ $t('billReport.table.materialDensity') }}</th>
+            <th>{{ $t('billReport.table.alarmCount') }}</th>
+            <th>{{ $t('billReport.table.alarmFrequency') }}</th>
+            <th>{{ $t('billReport.table.stayMinutes') }}</th>
+            <th>{{ $t('billReport.table.holdMinutes') }}</th>
+            <th>{{ $t('billReport.table.route') }}</th>
+            <th>{{ $t('billReport.table.score') }}</th>
+            <th>{{ $t('billReport.table.level') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in report.areas" :key="`pdf-${item.areaId}`">
+            <td>{{ item.displayName }}</td>
+            <td>{{ areaTypeLabel(item.areaType) }}</td>
+            <td>{{ item.mapNames || $t('base.noData') }}</td>
+            <td>{{ formatNumber(item.peopleDensity, 2) }}</td>
+            <td>{{ formatNumber(item.materialDensity, 2) }}</td>
+            <td>{{ alarmCountText(item) }}</td>
+            <td>{{ alarmAverageText(item) }}</td>
+            <td>{{ item.stayMinutes }}</td>
+            <td>{{ item.holdMinutes }}</td>
+            <td>{{ item.routeCount }}</td>
+            <td>{{ item.hotspotScore }}</td>
+            <td>{{ $t(`billReport.level.${item.levelKey}`) }}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </template>
 
 <script>
-import { mapState } from 'vuex';
-import * as echarts from 'echarts/core';
-import { BarChart, LineChart, SankeyChart } from 'echarts/charts';
-import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components';
-import { CanvasRenderer } from 'echarts/renderers';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
-import * as XLSX from 'xlsx';
-
-echarts.use([
-  BarChart,
-  LineChart,
-  SankeyChart,
-  GridComponent,
-  TooltipComponent,
-  LegendComponent,
-  CanvasRenderer
-]);
-
 export default {
-  name: 'BillReportDashboard',
+  name: 'DataAnalysisPage',
   data() {
     const end = new Date();
     const start = new Date(end.getTime() - 24 * 60 * 60 * 1000);
@@ -318,51 +272,31 @@ export default {
     return {
       loading: false,
       initialized: false,
-      activeMetric: 'hotspotScore',
       filters: {
         mapId: null,
         dateRange: [start, end]
       },
       report: {
         generatedAt: 0,
+        start: 0,
+        end: 0,
         areas: [],
         routes: [],
         trends: []
-      },
-      chartIds: {
-        trend: 'bill-report-trend-chart',
-        density: 'bill-report-density-chart',
-        route: 'bill-report-route-chart-v2'
-      },
-      charts: {
-        trend: null,
-        density: null,
-        route: null
-      },
-      handleWindowResize: null
+      }
     };
   },
   computed: {
-    ...mapState({
-      collapsed: (state) => state.app.collapsed
-    }),
-    metricTabs() {
-      return [
-        { value: 'hotspotScore', label: this.$t('billReport.analysis.composite') },
-        { value: 'peopleDensity', label: this.$t('billReport.analysis.people') },
-        { value: 'materialDensity', label: this.$t('billReport.analysis.material') },
-        { value: 'alarmCount', label: this.$t('billReport.analysis.alarm') },
-        { value: 'stayMinutes', label: this.$t('billReport.analysis.stay') },
-        { value: 'routeCount', label: this.$t('billReport.analysis.route') }
-      ];
+    isJapanese() {
+      return String(this.$i18n.locale || '').startsWith('ja');
     },
-    activeMetricLabel() {
-      const target = this.metricTabs.find((item) => item.value === this.activeMetric);
-      return target ? target.label : this.metricTabs[0].label;
+    pageSubtitle() {
+      return this.$t('billReport.subtitle');
     },
     selectedRangeText() {
       const [start, end] = this.filters.dateRange || [];
       if (!start || !end) return '--';
+
       return `${this.$pub.slTimeFormat(start, { format: 'MM-DD HH:mm' })} - ${this.$pub.slTimeFormat(end, {
         format: 'MM-DD HH:mm'
       })}`;
@@ -377,103 +311,102 @@ export default {
       }
       return this.filters.mapId || '--';
     },
+    detailCountText() {
+      return this.localizedText(
+        `${this.report.areas.length} 个区域`,
+        `${this.report.areas.length} エリア`
+      );
+    },
+    rangeHours() {
+      const [start, end] = this.filters.dateRange || [];
+      if (!start || !end) return 1;
+      return Math.max((new Date(end).getTime() - new Date(start).getTime()) / 3600000, 1);
+    },
+    rangeDays() {
+      return Math.max(this.rangeHours / 24, 1 / 24);
+    },
+    alarmAverageMode() {
+      return this.rangeHours >= 48 ? 'day' : 'hour';
+    },
+    hotspotRanking() {
+      return [...this.report.areas]
+        .sort((a, b) => Number(b.hotspotScore || 0) - Number(a.hotspotScore || 0))
+        .slice(0, 6);
+    },
+    alarmRanking() {
+      return [...this.report.areas]
+        .filter((item) => Number(item.alarmCount || 0) > 0)
+        .sort((a, b) => Number(b.alarmCount || 0) - Number(a.alarmCount || 0))
+        .slice(0, 6);
+    },
+    stayRanking() {
+      return [...this.report.areas]
+        .filter((item) => this.stayHoldTotal(item) > 0)
+        .sort((a, b) => this.stayHoldTotal(b) - this.stayHoldTotal(a))
+        .slice(0, 6);
+    },
+    routeRanking() {
+      return [...this.report.routes]
+        .sort((a, b) => Number(b.count || 0) - Number(a.count || 0))
+        .slice(0, 6);
+    },
     summaryCards() {
-      const areas = this.report.areas || [];
-      const topArea = areas[0];
-      const peoplePeak = this.topAreaBy('peopleDensity');
-      const materialPeak = this.topAreaBy('materialDensity');
-      const totalAlarm = areas.reduce((sum, item) => sum + Number(item.alarmCount || 0), 0);
-      const unresolvedAlarm = areas.reduce((sum, item) => sum + Number(item.unresolvedAlarmCount || 0), 0);
-      const stayPeak = this.topAreaBy('stayMinutes');
-      const routePeak = this.report.routes.length ? this.report.routes[0] : null;
+      const hotspot = this.hotspotRanking[0] || null;
+      const peoplePeak = this.topAreaBy((item) => Number(item.peopleDensity || 0));
+      const materialPeak = this.topAreaBy((item) => Number(item.materialDensity || 0));
+      const alarmPeak = this.alarmRanking[0] || null;
+      const stayPeak = this.stayRanking[0] || null;
+      const routePeak = this.routeRanking[0] || null;
 
       return [
         {
           key: 'hotspot',
-          icon: 'ios-flame-outline',
-          label: this.$t('billReport.summary.hotspot'),
-          value: topArea ? topArea.hotspotScore : '--',
-          desc: topArea ? `${topArea.objectName} / ${this.$t(`billReport.level.${topArea.levelKey}`)}` : this.$t('billReport.text.none')
+          label: this.localizedText('热点区域', 'ホットスポット'),
+          value: hotspot ? hotspot.hotspotScore : '--',
+          desc: hotspot ? hotspot.displayName : this.$t('billReport.text.none')
         },
         {
-          key: 'density',
-          icon: 'ios-people-outline',
-          label: this.$t('billReport.summary.density'),
-          value: `${this.formatNumber(peoplePeak ? peoplePeak.peopleDensity : 0, 2)} / ${this.formatNumber(
-            materialPeak ? materialPeak.materialDensity : 0,
-            2
-          )}`,
-          desc: `${peoplePeak ? peoplePeak.objectName : this.$t('billReport.text.none')} / ${
-            materialPeak ? materialPeak.objectName : this.$t('billReport.text.none')
-          }`
+          key: 'people',
+          label: this.$t('billReport.summary.peoplePeak'),
+          value: peoplePeak ? this.formatNumber(peoplePeak.peopleDensity, 2) : '--',
+          desc: peoplePeak ? peoplePeak.displayName : this.$t('billReport.text.none')
+        },
+        {
+          key: 'material',
+          label: this.$t('billReport.summary.materialPeak'),
+          value: materialPeak ? this.formatNumber(materialPeak.materialDensity, 2) : '--',
+          desc: materialPeak ? materialPeak.displayName : this.$t('billReport.text.none')
         },
         {
           key: 'alarm',
-          icon: 'ios-notifications-outline',
-          label: this.$t('billReport.summary.alarm'),
-          value: totalAlarm,
-          desc: `${this.$t('billReport.text.unresolved')}: ${unresolvedAlarm}`
+          label: this.$t('billReport.summary.alarmFrequency'),
+          value: alarmPeak ? this.alarmCountText(alarmPeak) : '--',
+          desc: alarmPeak
+            ? `${alarmPeak.displayName} / ${this.alarmAverageText(alarmPeak)}`
+            : this.$t('billReport.text.none')
+        },
+        {
+          key: 'stay',
+          label: this.$t('billReport.summary.stayHoldPeak'),
+          value: stayPeak ? stayPeak.stayMinutes + stayPeak.holdMinutes : '--',
+          desc: stayPeak ? stayPeak.displayName : this.$t('billReport.text.none')
         },
         {
           key: 'route',
-          icon: 'ios-git-network',
-          label: this.$t('billReport.summary.stayRoute'),
-          value: stayPeak ? `${stayPeak.stayMinutes}/${stayPeak.holdMinutes}` : '--',
+          label: this.localizedText('活动 / 搬送路线', '活動 / 搬送ルート'),
+          value: routePeak ? routePeak.count : '--',
           desc: routePeak
-            ? `${routePeak.startName} -> ${routePeak.endName} (${routePeak.count})`
+            ? `${routePeak.startDisplayName} -> ${routePeak.endDisplayName}`
             : this.$t('billReport.text.none')
         }
       ];
-    },
-    rankingItems() {
-      return [...this.report.areas].sort((a, b) => this.metricValue(b) - this.metricValue(a)).slice(0, 6);
-    },
-    topFocusAreas() {
-      return [...this.report.areas].sort((a, b) => this.metricValue(b) - this.metricValue(a)).slice(0, 6);
-    },
-    heatNodes() {
-      const areas = [...this.report.areas];
-      if (!areas.length) return [];
-
-      const sorted = [...areas].sort((a, b) => this.metricValue(a) - this.metricValue(b));
-      const topIds = new Set(
-        [...areas]
-          .sort((a, b) => this.metricValue(b) - this.metricValue(a))
-          .slice(0, 6)
-          .map((item) => item.areaId)
-      );
-      const positioned = this.normalizeNodePositions(sorted);
-      const maxValue = Math.max(...areas.map((item) => this.metricValue(item)), 1);
-
-      return positioned.map((item) => ({
-        ...item,
-        showLabel: topIds.has(item.areaId),
-        size: Math.round(28 + (this.metricValue(item) / maxValue) * 24)
-      }));
-    },
-    heatRoutes() {
-      const nodeMap = this.heatNodes.reduce((map, item) => {
-        map[item.areaId] = item;
-        return map;
-      }, {});
-      const maxCount = Math.max(...this.report.routes.map((item) => item.count), 1);
-
-      return this.report.routes
-        .slice(0, 10)
-        .map((item) => ({
-          key: `${item.startAreaId}_${item.endAreaId}`,
-          start: nodeMap[item.startAreaId],
-          end: nodeMap[item.endAreaId],
-          strokeWidth: 1 + (item.count / maxCount) * 3.2
-        }))
-        .filter((item) => item.start && item.end);
     },
     tableColumns() {
       return [
         {
           title: this.$t('billReport.table.area'),
           minWidth: 160,
-          key: 'objectName'
+          render: (h, params) => h('span', params.row.displayName || params.row.objectName)
         },
         {
           title: this.$t('billReport.table.type'),
@@ -488,6 +421,11 @@ export default {
           }
         },
         {
+          title: this.$t('billReport.table.map'),
+          minWidth: 160,
+          render: (h, params) => h('span', params.row.mapNames || this.$t('base.noData'))
+        },
+        {
           title: this.$t('billReport.table.peopleDensity'),
           minWidth: 120,
           align: 'center',
@@ -500,26 +438,32 @@ export default {
           render: (h, params) => h('span', this.formatNumber(params.row.materialDensity, 2))
         },
         {
-          title: this.$t('billReport.table.alarm'),
-          minWidth: 110,
+          title: this.$t('billReport.table.alarmCount'),
+          minWidth: 100,
           align: 'center',
-          render: (h, params) => {
-            const row = params.row;
-            const value = row.unresolvedAlarmCount
-              ? `${row.alarmCount} (${row.unresolvedAlarmCount})`
-              : `${row.alarmCount}`;
-            return h('span', value);
-          }
+          render: (h, params) => h('span', this.alarmCountText(params.row))
         },
         {
-          title: this.$t('billReport.table.stayHold'),
-          minWidth: 130,
+          title: this.$t('billReport.table.alarmFrequency'),
+          minWidth: 140,
           align: 'center',
-          render: (h, params) => h('span', `${params.row.stayMinutes}/${params.row.holdMinutes}`)
+          render: (h, params) => h('span', this.alarmAverageText(params.row))
+        },
+        {
+          title: this.$t('billReport.table.stayMinutes'),
+          minWidth: 110,
+          align: 'center',
+          key: 'stayMinutes'
+        },
+        {
+          title: this.$t('billReport.table.holdMinutes'),
+          minWidth: 110,
+          align: 'center',
+          key: 'holdMinutes'
         },
         {
           title: this.$t('billReport.table.route'),
-          minWidth: 100,
+          minWidth: 110,
           align: 'center',
           key: 'routeCount'
         },
@@ -544,30 +488,10 @@ export default {
       ];
     }
   },
-  watch: {
-    collapsed() {
-      setTimeout(() => {
-        this.resizeCharts();
-      }, 260);
-    },
-    '$i18n.locale'() {
-      this.$nextTick(() => {
-        this.renderCharts();
-      });
-    }
-  },
-  mounted() {
-    this.handleWindowResize = this.$pub.slDebounce(() => {
-      this.resizeCharts();
-    }, 100);
-
-    window.addEventListener('resize', this.handleWindowResize);
-  },
-  beforeDestroy() {
-    window.removeEventListener('resize', this.handleWindowResize);
-    this.disposeCharts();
-  },
   methods: {
+    localizedText(zhText, jaText) {
+      return this.isJapanese ? jaText : zhText;
+    },
     handleMapReady() {
       if (this.initialized) return;
 
@@ -607,255 +531,137 @@ export default {
           end: this.$pub.slConvertTimestamp(end)
         });
 
+        const areas = (Array.isArray(res.areas) ? res.areas : []).map((item, index) => ({
+          ...item,
+          displayName: this.buildAreaDisplayName(item, index + 1)
+        }));
+        const areaNameMap = areas.reduce((result, item) => {
+          result[item.areaId] = item.displayName;
+          return result;
+        }, {});
+        const routes = (Array.isArray(res.routes) ? res.routes : []).map((item, index) => ({
+          ...item,
+          startDisplayName: areaNameMap[item.startAreaId] || this.buildRouteDisplayName(item.startName, item.startAreaId, index + 1),
+          endDisplayName: areaNameMap[item.endAreaId] || this.buildRouteDisplayName(item.endName, item.endAreaId, index + 1)
+        }));
+
         this.report = {
           generatedAt: res.generatedAt || Date.now(),
-          areas: Array.isArray(res.areas) ? res.areas : [],
-          routes: Array.isArray(res.routes) ? res.routes : [],
+          start: res.start || this.$pub.slConvertTimestamp(start),
+          end: res.end || this.$pub.slConvertTimestamp(end),
+          areas,
+          routes,
           trends: Array.isArray(res.trends) ? res.trends : []
         };
-
-        this.$nextTick(() => {
-          this.renderCharts();
-        });
       } catch (error) {
         this.$Message.error(error && error.msg ? error.msg : this.$t('base.optionFail'));
       } finally {
         this.loading = false;
       }
     },
-    metricValue(item) {
-      const value = item && item[this.activeMetric];
-      return Number(value) || 0;
+    topAreaBy(getter) {
+      return [...this.report.areas].sort((a, b) => getter(b) - getter(a))[0] || null;
     },
-    metricValueText(item) {
-      if (this.activeMetric === 'peopleDensity' || this.activeMetric === 'materialDensity') {
-        return this.formatNumber(this.metricValue(item), 2);
+    isPlaceholderAreaName(name) {
+      const text = String(name || '').trim();
+      return !text || /^tt$/i.test(text);
+    },
+    buildAreaDisplayName(item, index) {
+      const rawName = String((item && item.objectName) || '').trim();
+      if (!this.isPlaceholderAreaName(rawName)) {
+        return rawName;
       }
-      return `${Math.round(this.metricValue(item))}`;
+
+      const typeLabel = this.areaTypeLabel(item && item.areaType);
+      return `${typeLabel} ${this.formatRank(index)}`;
     },
-    focusReasonText(item) {
+    buildRouteDisplayName(name, areaId, index) {
+      const rawName = String(name || '').trim();
+      if (!this.isPlaceholderAreaName(rawName)) {
+        return rawName;
+      }
+
+      const label = this.localizedText('区域', 'エリア');
+      const suffix = areaId != null ? areaId : this.formatRank(index);
+      return `${label} ${suffix}`;
+    },
+    alarmCountValue(item) {
+      return Number(item.alarmCount || 0);
+    },
+    alarmCountText(item) {
+      return `${this.alarmCountValue(item)} ${this.$t('billReport.text.alarmUnit')}`;
+    },
+    alarmAverage(item) {
+      const divisor = this.alarmAverageMode === 'day' ? this.rangeDays : this.rangeHours;
+      return (this.alarmCountValue(item) / divisor) || 0;
+    },
+    alarmAverageText(item) {
+      const unitKey = this.alarmAverageMode === 'day' ? 'alarmRateDayUnit' : 'alarmRateUnit';
+      return `${this.localizedText('平均', '平均')} ${this.formatNumber(this.alarmAverage(item), 2)} ${this.$t(
+        `billReport.text.${unitKey}`
+      )}`;
+    },
+    stayHoldTotal(item) {
+      return Number(item.stayMinutes || 0) + Number(item.holdMinutes || 0);
+    },
+    stayHoldText(item) {
+      return `${Number(item.stayMinutes || 0)} / ${Number(item.holdMinutes || 0)} min`;
+    },
+    scoreBarWidth(item) {
+      const max = Math.max(...this.hotspotRanking.map((current) => Number(current.hotspotScore || 0)), 1);
+      return Math.max((Number(item.hotspotScore || 0) / max) * 100, 8);
+    },
+    alarmBarWidth(item) {
+      const max = Math.max(...this.alarmRanking.map((current) => this.alarmCountValue(current)), 1);
+      return Math.max((this.alarmCountValue(item) / max) * 100, 8);
+    },
+    stayBarWidth(item) {
+      const max = Math.max(...this.stayRanking.map((current) => this.stayHoldTotal(current)), 1);
+      return Math.max((this.stayHoldTotal(item) / max) * 100, 8);
+    },
+    areaMetricChips(item) {
       return [
-        `${this.$t('billReport.analysis.people')}: ${this.formatNumber(item.peopleDensity, 2)}`,
-        `${this.$t('billReport.analysis.alarm')}: ${item.alarmCount}`,
-        `${this.$t('billReport.analysis.route')}: ${item.routeCount}`
-      ].join('  |  ');
-    },
-    rankingWidth(item) {
-      const max = Math.max(...this.report.areas.map((area) => this.metricValue(area)), 1);
-      return Math.max((this.metricValue(item) / max) * 100, 8);
-    },
-    topAreaBy(key) {
-      return [...this.report.areas].sort((a, b) => Number(b[key] || 0) - Number(a[key] || 0))[0] || null;
-    },
-    normalizeNodePositions(list) {
-      const withGeometry = list.filter(
-        (item) => item.hasGeometry && Number.isFinite(item.centerX) && Number.isFinite(item.centerY)
-      );
-
-      if (withGeometry.length >= 2) {
-        const minX = Math.min(...withGeometry.map((item) => item.centerX));
-        const maxX = Math.max(...withGeometry.map((item) => item.centerX));
-        const minY = Math.min(...withGeometry.map((item) => item.centerY));
-        const maxY = Math.max(...withGeometry.map((item) => item.centerY));
-        const rangeX = maxX - minX || 1;
-        const rangeY = maxY - minY || 1;
-
-        return list.map((item, index) => {
-          if (item.hasGeometry && Number.isFinite(item.centerX) && Number.isFinite(item.centerY)) {
-            return {
-              ...item,
-              left: this.roundNumber(10 + ((item.centerX - minX) / rangeX) * 80, 1),
-              top: this.roundNumber(14 + (1 - (item.centerY - minY) / rangeY) * 68, 1)
-            };
-          }
-
-          return {
-            ...item,
-            ...this.fallbackNodePosition(index, list.length)
-          };
-        });
-      }
-
-      return list.map((item, index) => ({
-        ...item,
-        ...this.fallbackNodePosition(index, list.length)
-      }));
-    },
-    fallbackNodePosition(index, total) {
-      const safeTotal = Math.max(total, 1);
-      const columns = safeTotal <= 4 ? 2 : safeTotal <= 9 ? 3 : 4;
-      const row = Math.floor(index / columns);
-      const col = index % columns;
-      const rows = Math.ceil(safeTotal / columns);
-
-      return {
-        left: this.roundNumber(18 + (col * 62) / Math.max(columns - 1, 1), 1),
-        top: this.roundNumber(22 + (row * 50) / Math.max(rows - 1, 1), 1)
-      };
-    },
-    renderCharts() {
-      this.renderTrendChart();
-      this.renderDensityChart();
-      this.renderRouteChart();
-    },
-    renderTrendChart() {
-      const dom = document.getElementById(this.chartIds.trend);
-      if (!dom || !this.report.trends.length) {
-        this.disposeChart('trend');
-        return;
-      }
-
-      const chart = this.getChart('trend', dom);
-      chart.setOption({
-        color: ['#ff6b6b'],
-        grid: { top: 26, left: 36, right: 16, bottom: 24, containLabel: true },
-        tooltip: { trigger: 'axis' },
-        xAxis: {
-          type: 'category',
-          data: this.report.trends.map((item) => item.label),
-          axisTick: { show: false },
-          axisLine: { lineStyle: { color: '#ccd7e7' } },
-          axisLabel: { color: '#688098' }
+        {
+          key: 'people',
+          label: this.localizedText('人员', '人員'),
+          value: this.formatNumber(item.peopleDensity, 2)
         },
-        yAxis: {
-          type: 'value',
-          splitLine: { lineStyle: { type: 'dashed', color: '#d9e1ee' } },
-          axisLabel: { color: '#688098' }
+        {
+          key: 'material',
+          label: this.localizedText('物料', '物料'),
+          value: this.formatNumber(item.materialDensity, 2)
         },
-        series: [
-          {
-            type: 'line',
-            smooth: true,
-            symbolSize: 6,
-            lineStyle: { width: 3 },
-            areaStyle: {
-              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                { offset: 0, color: 'rgba(255,107,107,0.35)' },
-                { offset: 1, color: 'rgba(255,107,107,0.02)' }
-              ])
-            },
-            data: this.report.trends.map((item) => item.count)
-          }
-        ]
-      });
-    },
-    renderDensityChart() {
-      const dom = document.getElementById(this.chartIds.density);
-      if (!dom || !this.report.areas.length) {
-        this.disposeChart('density');
-        return;
-      }
-
-      const areas = [...this.report.areas].sort((a, b) => b.hotspotScore - a.hotspotScore).slice(0, 6);
-      const chart = this.getChart('density', dom);
-      chart.setOption({
-        color: ['#14c3a2', '#ff9f43'],
-        legend: { top: 0, textStyle: { color: '#5f738d' } },
-        grid: { top: 36, left: 40, right: 18, bottom: 22, containLabel: true },
-        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-        xAxis: {
-          type: 'category',
-          data: areas.map((item) => this.truncate(item.objectName, 8)),
-          axisTick: { show: false },
-          axisLine: { lineStyle: { color: '#ccd7e7' } },
-          axisLabel: { color: '#688098' }
+        {
+          key: 'alarm',
+          label: this.localizedText('告警', 'アラーム'),
+          value: this.alarmCountText(item)
         },
-        yAxis: {
-          type: 'value',
-          splitLine: { lineStyle: { type: 'dashed', color: '#d9e1ee' } },
-          axisLabel: { color: '#688098' }
+        {
+          key: 'stay',
+          label: this.localizedText('滞留/放置', '滞留/放置'),
+          value: this.stayHoldText(item)
         },
-        series: [
-          {
-            name: this.$t('billReport.analysis.people'),
-            type: 'bar',
-            barMaxWidth: 18,
-            data: areas.map((item) => item.peopleDensity),
-            itemStyle: { borderRadius: [8, 8, 0, 0] }
-          },
-          {
-            name: this.$t('billReport.analysis.material'),
-            type: 'bar',
-            barMaxWidth: 18,
-            data: areas.map((item) => item.materialDensity),
-            itemStyle: { borderRadius: [8, 8, 0, 0] }
-          }
-        ]
-      });
-    },
-    renderRouteChart() {
-      const dom = document.getElementById(this.chartIds.route);
-      if (!dom || !this.report.routes.length) {
-        this.disposeChart('route');
-        return;
-      }
-
-      const routes = this.report.routes.slice(0, 10);
-      const nodeMap = {};
-      routes.forEach((item) => {
-        nodeMap[item.startName] = { name: item.startName };
-        nodeMap[item.endName] = { name: item.endName };
-      });
-
-      const chart = this.getChart('route', dom);
-      chart.setOption({
-        tooltip: {
-          trigger: 'item'
-        },
-        series: [
-          {
-            type: 'sankey',
-            left: 10,
-            right: 20,
-            top: 12,
-            bottom: 12,
-            emphasis: { focus: 'adjacency' },
-            lineStyle: {
-              color: 'gradient',
-              curveness: 0.48,
-              opacity: 0.28
-            },
-            label: {
-              color: '#24364c',
-              fontSize: 12
-            },
-            itemStyle: {
-              borderWidth: 0,
-              color: '#4d8dff'
-            },
-            data: Object.values(nodeMap),
-            links: routes.map((item) => ({
-              source: item.startName,
-              target: item.endName,
-              value: item.count
-            }))
-          }
-        ]
-      });
-    },
-    getChart(name, dom) {
-      if (!this.charts[name]) {
-        this.charts[name] = echarts.init(dom);
-      }
-      return this.charts[name];
-    },
-    resizeCharts() {
-      Object.keys(this.charts).forEach((key) => {
-        if (this.charts[key]) {
-          this.charts[key].resize();
+        {
+          key: 'route',
+          label: this.localizedText('路线', 'ルート'),
+          value: `${Number(item.routeCount || 0)}`
         }
-      });
+      ];
     },
-    disposeChart(name) {
-      if (this.charts[name]) {
-        this.charts[name].dispose();
-        this.charts[name] = null;
-      }
+    hotspotDrivers(item) {
+      return [
+        { label: this.$t('billReport.analysis.people'), value: Number(item.peopleDensity || 0) },
+        { label: this.$t('billReport.analysis.material'), value: Number(item.materialDensity || 0) },
+        { label: this.$t('billReport.analysis.alarm'), value: this.alarmCountValue(item) },
+        { label: this.$t('billReport.analysis.stay'), value: this.stayHoldTotal(item) },
+        { label: this.$t('billReport.analysis.route'), value: Number(item.routeCount || 0) }
+      ]
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 2)
+        .map((entry) => entry.label);
     },
-    disposeCharts() {
-      this.disposeChart('trend');
-      this.disposeChart('density');
-      this.disposeChart('route');
+    hotspotReasonText(item) {
+      return `${this.localizedText('主要项: ', '主な項目: ')}${this.hotspotDrivers(item).join(' / ')}`;
     },
     async handleExportPdf() {
       if (!this.report.areas.length) {
@@ -863,6 +669,8 @@ export default {
         return;
       }
 
+      const [{ default: html2canvas }, pdfModule] = await Promise.all([import('html2canvas'), import('jspdf')]);
+      const PdfConstructor = pdfModule.jsPDF || (pdfModule.default && pdfModule.default.jsPDF) || pdfModule.default;
       const element = this.$refs.pdfSheet;
       const canvas = await html2canvas(element, {
         scale: 2,
@@ -870,47 +678,52 @@ export default {
         backgroundColor: '#ffffff',
         windowWidth: element.scrollWidth
       });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
+      const image = canvas.toDataURL('image/png');
+      const pdf = new PdfConstructor('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pdfWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
+      const imageWidth = pdfWidth;
+      const imageHeight = (canvas.height * imageWidth) / canvas.width;
+      let remaining = imageHeight;
       let position = 0;
 
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pdfHeight;
+      pdf.addImage(image, 'PNG', 0, position, imageWidth, imageHeight);
+      remaining -= pdfHeight;
 
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
+      while (remaining > 0) {
+        position = remaining - imageHeight;
         pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight;
+        pdf.addImage(image, 'PNG', 0, position, imageWidth, imageHeight);
+        remaining -= pdfHeight;
       }
 
       pdf.save(`${this.exportBaseName()}.pdf`);
       this.$Message.success(this.$t('base.optionSuccess'));
     },
-    handleExportExcel() {
+    async handleExportExcel() {
       if (!this.report.areas.length) {
         this.$Message.warning(this.$t('base.noDataText'));
         return;
       }
 
+      const XLSX = await import('xlsx');
       const rows = this.report.areas.map((item) => ({
-        [this.$t('billReport.table.area')]: item.objectName,
+        [this.$t('billReport.table.area')]: item.displayName || item.objectName,
         [this.$t('billReport.table.type')]: this.areaTypeLabel(item.areaType),
+        [this.$t('billReport.table.map')]: item.mapNames || this.$t('base.noData'),
         [this.$t('billReport.table.peopleDensity')]: this.formatNumber(item.peopleDensity, 2),
         [this.$t('billReport.table.materialDensity')]: this.formatNumber(item.materialDensity, 2),
-        [this.$t('billReport.table.alarm')]: item.alarmCount,
-        [this.$t('billReport.table.stayHold')]: `${item.stayMinutes}/${item.holdMinutes}`,
+        [this.$t('billReport.table.alarmCount')]: this.alarmCountText(item),
+        [this.$t('billReport.table.alarmFrequency')]: this.alarmAverageText(item),
+        [this.$t('billReport.table.stayMinutes')]: item.stayMinutes,
+        [this.$t('billReport.table.holdMinutes')]: item.holdMinutes,
         [this.$t('billReport.table.route')]: item.routeCount,
         [this.$t('billReport.table.score')]: item.hotspotScore,
         [this.$t('billReport.table.level')]: this.$t(`billReport.level.${item.levelKey}`)
       }));
       const workbook = XLSX.utils.book_new();
       const worksheet = XLSX.utils.json_to_sheet(rows);
+
       XLSX.utils.book_append_sheet(workbook, worksheet, this.$t('sideBarMenu.billReport'));
       XLSX.writeFile(workbook, `${this.exportBaseName()}.xlsx`);
       this.$Message.success(this.$t('base.optionSuccess'));
@@ -918,11 +731,6 @@ export default {
     exportBaseName() {
       const stamp = this.$pub.slTimeFormat(Date.now(), { format: 'YYYYMMDD_HHmmss' });
       return `${this.$t('billReport.export.fileName')}_${stamp}`;
-    },
-    levelColor(level) {
-      if (level === 'high') return 'red';
-      if (level === 'medium') return 'orange';
-      return 'green';
     },
     areaTypeLabel(type) {
       return this.$t(`billReport.type.${type || 'general'}`);
@@ -932,546 +740,352 @@ export default {
       if (type === 'passage') return 'cyan';
       return 'default';
     },
-    truncate(value, length) {
-      const text = String(value || '');
-      return text.length > length ? `${text.slice(0, length)}...` : text;
-    },
-    formatNumber(value, digits) {
-      return Number(value || 0).toFixed(digits);
-    },
-    roundNumber(value, digits) {
-      const factor = Math.pow(10, digits);
-      return Math.round((Number(value) || 0) * factor) / factor;
+    levelColor(level) {
+      if (level === 'high') return 'red';
+      if (level === 'medium') return 'orange';
+      return 'green';
     },
     formatRank(index) {
       return index < 10 ? `0${index}` : `${index}`;
+    },
+    formatNumber(value, digits = 0) {
+      const numeric = Number(value);
+      return (Number.isFinite(numeric) ? numeric : 0).toFixed(digits);
     }
   }
 };
 </script>
 
 <style scoped lang="less">
-.bill-report-page {
+.data-analysis-page {
   position: relative;
 }
 
-.report-hero,
+.toolbar-card,
 .surface-card {
-  border-radius: 24px;
   overflow: hidden;
-  box-shadow: 0 18px 40px rgba(22, 43, 77, 0.08);
+  border-radius: 8px;
+  box-shadow: 0 10px 24px rgba(20, 42, 74, 0.08);
 }
 
-.report-hero {
+.toolbar-card {
   margin-bottom: 14px;
-  background:
-    radial-gradient(circle at top left, rgba(77, 141, 255, 0.24), transparent 34%),
-    radial-gradient(circle at right bottom, rgba(19, 195, 162, 0.18), transparent 30%),
-    linear-gradient(135deg, #f8fbff 0%, #eef5ff 45%, #f7fbff 100%);
 }
 
-.hero-wrap {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.95fr);
-  gap: 18px;
-  align-items: stretch;
+.toolbar-card ::v-deep .ivu-card-body,
+.surface-card ::v-deep .ivu-card-body {
+  padding: 16px;
 }
 
-.hero-copy {
-  padding: 8px 4px 4px;
+.toolbar-card ::v-deep .ivu-btn,
+.surface-card ::v-deep .ivu-btn {
+  border-radius: 6px;
 }
 
-.hero-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: rgba(38, 92, 224, 0.12);
-  color: #2a5de0;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-}
-
-.hero-title {
-  margin-top: 16px;
-  font-size: 30px;
-  line-height: 1.1;
-  color: #17304f;
-}
-
-.hero-subtitle {
-  max-width: 680px;
-  margin-top: 14px;
-  color: #5f748e;
-  line-height: 1.8;
-}
-
-.hero-meta {
+.toolbar-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 18px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
 }
 
-.hero-meta span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.78);
-  color: #48607c;
-  font-size: 12px;
+.title-block {
+  flex: 1 1 360px;
+  min-width: 0;
 }
 
-.hero-panel {
-  padding: 18px;
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(10px);
+.page-title {
+  color: #1f3450;
+  font-size: 28px;
+  line-height: 1.12;
 }
 
-.filter-grid {
+.page-subtitle {
+  max-width: 760px;
+  margin-top: 8px;
+  color: #60758f;
+  line-height: 1.7;
+}
+
+.toolbar-controls {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: 220px 360px auto;
+  gap: 10px;
+  align-items: end;
+  flex: 0 0 auto;
 }
 
-.filter-item {
+.control-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
-.filter-item.wide {
-  grid-column: span 2;
-}
-
-.filter-item label {
+.control-label {
+  color: #60758f;
   font-size: 12px;
-  font-weight: 600;
-  color: #5a7190;
+  font-weight: 700;
 }
 
-.filter-range {
+.range-picker {
   width: 100%;
 }
 
-.hero-actions {
+.toolbar-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 16px;
+  gap: 8px;
 }
 
-.metric-switch {
+.toolbar-meta {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: 10px;
-  margin-bottom: 14px;
+  margin-top: 12px;
+  color: #6a809b;
+  font-size: 12px;
+  line-height: 1.5;
+  flex-wrap: wrap;
 }
 
-.metric-pill {
-  padding: 10px 16px;
-  border: none;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.85);
-  color: #50677f;
-  box-shadow: 0 8px 20px rgba(22, 43, 77, 0.06);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.metric-pill.active {
-  background: linear-gradient(135deg, #2f65e9 0%, #14c3a2 100%);
-  color: #fff;
+.meta-divider {
+  width: 1px;
+  height: 12px;
+  background: #d8e2ef;
 }
 
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
   margin-bottom: 14px;
 }
 
 .summary-card {
-  position: relative;
-  min-height: 150px;
-  padding: 20px 20px 18px;
-  overflow: hidden;
-  border-radius: 22px;
-  background: #ffffff;
-  box-shadow: 0 16px 34px rgba(20, 44, 79, 0.07);
-}
-
-.summary-card::before {
-  position: absolute;
-  top: -36px;
-  right: -26px;
-  width: 110px;
-  height: 110px;
-  content: '';
-  border-radius: 50%;
-  opacity: 0.16;
-}
-
-.summary-card.hotspot::before {
-  background: linear-gradient(135deg, #ff9068 0%, #ff5c60 100%);
-}
-
-.summary-card.density::before {
-  background: linear-gradient(135deg, #4fa9ff 0%, #2f65e9 100%);
-}
-
-.summary-card.alarm::before {
-  background: linear-gradient(135deg, #ff8a7a 0%, #f95d6a 100%);
-}
-
-.summary-card.route::before {
-  background: linear-gradient(135deg, #39d1c0 0%, #1b9c90 100%);
-}
-
-.summary-icon {
-  width: 42px;
-  height: 42px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 14px;
-  background: rgba(40, 87, 214, 0.08);
-  color: #2f65e9;
-  font-size: 22px;
+  min-height: 116px;
+  padding: 14px;
+  border: 1px solid #e4edf7;
+  border-radius: 8px;
+  background: #fff;
 }
 
 .summary-label {
-  margin-top: 16px;
-  color: #6b8098;
-  font-size: 13px;
+  color: #6a809b;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .summary-value {
-  margin-top: 12px;
-  font-size: 30px;
+  margin-top: 10px;
+  color: #1f3450;
+  font-size: 24px;
   font-weight: 700;
-  line-height: 1.1;
-  color: #18304e;
+  line-height: 1.15;
+  word-break: break-word;
 }
 
 .summary-desc {
-  margin-top: 12px;
-  color: #5c718a;
+  margin-top: 8px;
+  color: #60758f;
   line-height: 1.6;
+  word-break: break-word;
 }
 
-.main-grid {
+.content-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.85fr);
+  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.92fr);
   gap: 14px;
   margin-bottom: 14px;
 }
 
-.aside-stack {
+.side-grid {
   display: grid;
-  gap: 14px;
+  gap: 12px;
+  align-content: start;
 }
 
-.surface-card ::v-deep .ivu-card-body {
-  padding: 18px;
-}
-
-.panel-title-row {
+.panel-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 12px;
 }
 
 .panel-title {
+  color: #1f3450;
   font-size: 16px;
   font-weight: 700;
-  color: #20344f;
 }
 
 .panel-tip {
   margin-top: 4px;
-  color: #6c819b;
-  font-size: 12px;
-}
-
-.heat-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(260px, 0.8fr);
-  gap: 16px;
-}
-
-.heat-stage {
-  position: relative;
-  min-height: 430px;
-  overflow: hidden;
-  border-radius: 24px;
-  background: linear-gradient(150deg, #071426 0%, #0c2b4d 55%, #12506d 100%);
-}
-
-.heat-stage::before,
-.heat-stage::after {
-  position: absolute;
-  border-radius: 50%;
-  content: '';
-}
-
-.heat-stage::before {
-  top: -70px;
-  left: -40px;
-  width: 220px;
-  height: 220px;
-  background: radial-gradient(circle, rgba(73, 171, 255, 0.28) 0%, rgba(73, 171, 255, 0) 72%);
-}
-
-.heat-stage::after {
-  right: -90px;
-  bottom: -90px;
-  width: 260px;
-  height: 260px;
-  background: radial-gradient(circle, rgba(22, 195, 162, 0.22) 0%, rgba(22, 195, 162, 0) 70%);
-}
-
-.heat-grid {
-  position: absolute;
-  inset: 0;
-  background-image: linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
-  background-size: 54px 54px;
-  opacity: 0.55;
-}
-
-.heat-route-layer {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-}
-
-.heat-route {
-  stroke: rgba(157, 226, 255, 0.44);
-  fill: none;
-  stroke-linecap: round;
-}
-
-.heat-node-wrap {
-  position: absolute;
-  z-index: 2;
-  transform: translate(-50%, -50%);
-  text-align: center;
-}
-
-.heat-node {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 700;
-  box-shadow: 0 16px 28px rgba(3, 10, 20, 0.38);
-}
-
-.heat-node::after {
-  position: absolute;
-  inset: -8px;
-  border-radius: inherit;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  content: '';
-  animation: pulse-ring 3s ease-out infinite;
-}
-
-.heat-node.high {
-  background: linear-gradient(135deg, #ff9362 0%, #ff5d5d 100%);
-}
-
-.heat-node.medium {
-  background: linear-gradient(135deg, #ffc95c 0%, #ff9f43 100%);
-}
-
-.heat-node.stable {
-  background: linear-gradient(135deg, #37d0c0 0%, #3478ff 100%);
-}
-
-.heat-node-label {
-  max-width: 140px;
-  margin-top: 10px;
-  padding: 4px 10px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: rgba(6, 18, 33, 0.56);
-  color: #fff;
-  font-size: 12px;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.heat-side {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 14px;
-  border-radius: 20px;
-  background: linear-gradient(180deg, #f4f8ff 0%, #eef5ff 100%);
-}
-
-.legend-box {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.92);
-  color: #566d86;
-  font-size: 12px;
-}
-
-.legend-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-}
-
-.legend-dot.high {
-  background: #ff5d5d;
-}
-
-.legend-dot.medium {
-  background: #ffad48;
-}
-
-.legend-dot.stable {
-  background: #37d0c0;
-}
-
-.focus-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.focus-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.96);
-}
-
-.focus-rank {
-  min-width: 34px;
-  font-size: 18px;
-  font-weight: 700;
-  color: #2f65e9;
-}
-
-.focus-copy {
-  flex: 1;
-  min-width: 0;
-}
-
-.focus-name {
-  overflow: hidden;
-  color: #20344f;
-  font-weight: 700;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.focus-text {
-  margin-top: 4px;
-  color: #6c819b;
+  color: #6a809b;
   font-size: 12px;
   line-height: 1.6;
 }
 
-.ranking-list {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+.area-list,
+.metric-list,
+.route-list {
+  display: grid;
+  gap: 12px;
 }
 
-.ranking-item {
-  padding: 14px 14px 12px;
-  border-radius: 18px;
-  background: linear-gradient(180deg, #f9fbff 0%, #f4f8ff 100%);
+.area-item,
+.metric-item,
+.route-item {
+  padding: 14px;
+  border: 1px solid #e4edf7;
+  border-radius: 8px;
+  background: #fbfdff;
 }
 
-.ranking-head,
-.ranking-meta {
+.area-item-head,
+.metric-item-head,
+.route-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 12px;
 }
 
-.ranking-name-wrap {
+.area-main {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
 }
 
-.ranking-index {
+.area-rank,
+.route-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: #eef4ff;
   color: #2f65e9;
+  font-size: 14px;
   font-weight: 700;
+  flex-shrink: 0;
 }
 
-.ranking-name {
-  overflow: hidden;
-  color: #20344f;
-  font-weight: 600;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+.area-copy {
+  min-width: 0;
 }
 
-.ranking-value {
-  color: #17304f;
+.area-name,
+.metric-name,
+.route-path {
+  color: #1f3450;
   font-weight: 700;
+  line-height: 1.5;
+  word-break: break-word;
 }
 
-.ranking-bar-track {
-  height: 8px;
-  margin-top: 12px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: #dfe8f5;
+.area-meta,
+.metric-foot {
+  margin-top: 4px;
+  color: #6a809b;
+  font-size: 12px;
+  line-height: 1.6;
 }
 
-.ranking-bar-fill {
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #2f65e9 0%, #16c3a2 100%);
+.score-box {
+  min-width: 88px;
+  text-align: right;
 }
 
-.ranking-meta {
-  margin-top: 10px;
-  color: #6c819b;
+.score-label {
+  display: block;
+  color: #6a809b;
   font-size: 12px;
 }
 
-.chart-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  margin-bottom: 14px;
+.score-value {
+  display: block;
+  margin-top: 4px;
+  color: #1f3450;
+  font-size: 24px;
+  line-height: 1.1;
 }
 
-.chart-box {
-  height: 330px;
+.metric-bar {
+  height: 8px;
+  margin-top: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e1eaf6;
 }
 
-.chart-box.small {
-  height: 280px;
+.metric-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+}
+
+.score-fill {
+  background: linear-gradient(90deg, #2f65e9 0%, #28b897 100%);
+}
+
+.danger-fill {
+  background: linear-gradient(90deg, #ff8e6b 0%, #ff5d5d 100%);
+}
+
+.stay-fill {
+  background: linear-gradient(90deg, #f5b94b 0%, #ff8e3c 100%);
+}
+
+.metric-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.metric-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid #e4edf7;
+  border-radius: 6px;
+  background: #fff;
+  color: #60758f;
+  font-size: 12px;
+}
+
+.metric-chip strong {
+  color: #1f3450;
+  font-weight: 700;
+}
+
+.area-reason {
+  margin-top: 10px;
+  color: #6a809b;
+  line-height: 1.6;
+}
+
+.metric-value,
+.route-count {
+  color: #1f3450;
+  font-weight: 700;
+}
+
+.metric-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.route-path {
+  margin-top: 10px;
+}
+
+.table-panel {
+  margin-bottom: 12px;
 }
 
 .pdf-sheet {
@@ -1483,10 +1097,6 @@ export default {
   background: #fff;
 }
 
-.pdf-inner {
-  color: #20344f;
-}
-
 .pdf-head {
   display: flex;
   justify-content: space-between;
@@ -1496,50 +1106,54 @@ export default {
 }
 
 .pdf-title {
+  color: #1f3450;
   font-size: 28px;
   font-weight: 700;
 }
 
 .pdf-subtitle {
+  max-width: 700px;
   margin-top: 10px;
-  color: #5c718a;
+  color: #60758f;
   line-height: 1.7;
 }
 
 .pdf-meta {
+  color: #60758f;
   font-size: 13px;
-  color: #5c718a;
   line-height: 1.8;
 }
 
 .pdf-summary-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 12px;
   margin-top: 18px;
   margin-bottom: 20px;
 }
 
 .pdf-summary-card {
-  padding: 16px;
-  border-radius: 18px;
-  background: #f5f8fd;
+  padding: 12px;
+  border: 1px solid #e4edf7;
+  border-radius: 8px;
+  background: #f8fbff;
 }
 
 .pdf-summary-label {
+  color: #6a809b;
   font-size: 12px;
-  color: #6c819b;
 }
 
 .pdf-summary-value {
   margin-top: 8px;
-  font-size: 24px;
+  color: #1f3450;
+  font-size: 20px;
   font-weight: 700;
 }
 
 .pdf-summary-desc {
-  margin-top: 8px;
-  color: #5c718a;
+  margin-top: 6px;
+  color: #60758f;
   line-height: 1.6;
 }
 
@@ -1559,50 +1173,52 @@ export default {
   background: #eff4fb;
 }
 
-.table-panel {
-  margin-bottom: 12px;
-}
-
-@keyframes pulse-ring {
-  0% {
-    transform: scale(0.86);
-    opacity: 0.55;
-  }
-  100% {
-    transform: scale(1.35);
-    opacity: 0;
+@media (max-width: 1600px) {
+  .summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 1360px) {
-  .hero-wrap,
-  .main-grid,
-  .chart-grid,
-  .heat-layout,
+@media (max-width: 1380px) {
+  .toolbar-row,
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .toolbar-row {
+    display: grid;
+  }
+
+  .toolbar-controls {
+    grid-template-columns: minmax(220px, 0.8fr) minmax(320px, 1fr) auto;
+  }
+}
+
+@media (max-width: 1080px) {
+  .toolbar-controls,
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .toolbar-actions {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .toolbar-controls,
   .summary-grid {
     grid-template-columns: 1fr;
   }
-}
 
-@media (max-width: 768px) {
-  .hero-title {
-    font-size: 24px;
+  .area-item-head,
+  .metric-item-head,
+  .route-head {
+    flex-direction: column;
   }
 
-  .summary-value {
-    font-size: 24px;
-  }
-
-  .filter-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .filter-item.wide {
-    grid-column: span 1;
-  }
-
-  .heat-stage {
-    min-height: 340px;
+  .score-box {
+    text-align: left;
   }
 }
 </style>

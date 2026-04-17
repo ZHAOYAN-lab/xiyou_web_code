@@ -152,7 +152,7 @@
     "taskManage": "任务管理",
     "productArea": "区域管理",
     "accountManage": "账号管理",
-    "billReport": "数据导出"
+    "billReport": "数据分析"
   },
   "login": {
     "tab": "账户密码登录",
@@ -579,14 +579,14 @@
     "defaultName": "该区域"
   },
   "billReport": {
-    "title": "区域热点账票",
-    "subtitle": "围绕区域内人員/物料密度、电子围栏告警频度、滞留/放置时间与活动/搬送路线进行统计分析，并识别热点区域。",
+    "title": "数据分析",
+    "subtitle": "对区域内人员/物料密度、电子围栏告警频次、滞留/放置时间、活动/搬送路线等数据进行统计分析，并识别热点区域。",
     "filter": {
       "range": "统计区间"
     },
     "action": {
-      "refresh": "刷新账票",
-      "export": "导出账票",
+      "refresh": "刷新数据",
+      "export": "导出数据",
       "exportPdf": "导出PDF",
       "exportExcel": "导出Excel"
     },
@@ -599,19 +599,18 @@
       "route": "活动/搬送路线"
     },
     "summary": {
-      "hotspot": "高热区域",
-      "density": "密度峰值",
-      "alarm": "电子围栏告警",
-      "stayRoute": "滞留/搬送"
+      "hotspot": "综合热点",
+      "peoplePeak": "人员密度峰值",
+      "materialPeak": "物料密度峰值",
+      "alarmFrequency": "围栏告警",
+      "stayHoldPeak": "滞留/放置峰值"
     },
     "panel": {
-      "distribution": "热点分布图",
-      "ranking": "区域热点排行",
-      "alarmTrend": "告警趋势",
+      "distribution": "热点区域分布",
+      "hotspotIdentify": "热点识别结果",
+      "alarmRanking": "围栏告警频次排行",
       "routeFlow": "搬送路线排行",
-      "detail": "区域热点明细",
-      "densityCompare": "人流/物料密度对比",
-      "routeNetwork": "搬送路径网络"
+      "detail": "区域数据明细"
     },
     "table": {
       "area": "区域",
@@ -620,8 +619,12 @@
       "peopleDensity": "人员密度指数",
       "materialDensity": "物料密度指数",
       "alarm": "围栏告警",
+      "alarmCount": "告警次数",
+      "alarmFrequency": "平均告警频次",
       "stayHold": "滞留/放置(分钟)",
-      "route": "路线活跃度",
+      "stayMinutes": "滞留时间(分)",
+      "holdMinutes": "放置时间(分)",
+      "route": "搬送路径数",
       "score": "热点分",
       "level": "等级"
     },
@@ -636,7 +639,7 @@
       "stable": "状态平稳"
     },
     "export": {
-      "fileName": "区域热点账票"
+      "fileName": "数据分析"
     },
     "unit": {
       "routes": "条路线"
@@ -647,7 +650,16 @@
       "generatedAt": "生成时间",
       "mapLabel": "当前地图",
       "unresolved": "未处理告警",
-      "areaUnit": "个区域"
+      "areaUnit": "个区域",
+      "realDataOnly": "仅展示真实数据统计结果",
+      "sourceScope": "来源：轨迹 / 告警 / 任务",
+      "scoreRule": "热点分由人员密度、物料密度、围栏告警、滞留/放置时间和搬送路径共同计算",
+      "alarmRateUnit": "次/小时",
+      "alarmRateDayUnit": "次/天",
+      "alarmRateTip": "按告警总次数排序，并补充显示平均值",
+      "alarmUnit": "次",
+      "routeTip": "结合真实轨迹迁移与任务起终点生成",
+      "routeCount": "路径触发数"
     }
   },
   "mobileNav": {
