@@ -83,7 +83,7 @@
 
             <div>
               {{ $t('h5Location.labelRemark') }}：{{
-                currentTask.remark || currentTask.taskDesc || '-'
+                displayTaskRemark(currentTask)
               }}
             </div>
 
@@ -107,7 +107,7 @@
               size="small"
               type="primary"
               style="margin-top: 6px"
-              :disabled="!(currentTask.startAreaId || currentTask.endAreaId)"
+              :disabled="!canShowTaskArea"
               @click="handleShowTaskArea"
             >
               {{ $t('h5Location.showTaskArea') }}
@@ -143,7 +143,7 @@
         style="margin-left: 12px"
         @click="handleArrived"
       >
-        {{ $t('h5Location.arrived') }}
+        {{ arrivedButtonText }}
       </Button>
     </div>
 
@@ -163,6 +163,21 @@ import SideDrawer from './components/SideDrawer';
 import l7 from './mixins/l7';
 import taskApi from '@/api/path/task';
 import productAreaApi from '@/api/path/product-area';
+import beaconLightTaskApi from '@/api/path/beacon-light-task';
+
+const BEACON_LIGHT_TASK_TYPE = '点灯任务';
+const BEACON_LIGHT_KIND = 'beacon-light';
+const CLE_BASE_URL_KEY = 'xiyou_beacon_light_cle_base_url';
+const LIGHT_COLOR_RED = 1;
+const LIGHT_ON_SECONDS = 1;
+const LIGHT_FLASH_INTERVAL_SECONDS = 0.4;
+const LIGHT_LOOP_DELAY_MS = LIGHT_ON_SECONDS * 1000;
+const LIGHT_INTERVAL_UNITS = Math.round(LIGHT_FLASH_INTERVAL_SECONDS * 10);
+const LIGHT_DUTY = 100;
+const LIGHT_MODE = 0;
+const LIGHT_BUFFER_SIZE = 5;
+const LIGHT_DELIVERY_TIMEOUT_SECONDS = 3;
+const LIGHT_HTTP_TIMEOUT_MS = 8000;
 
 export default {
   components: { HeaderBar, SideDrawer },
@@ -177,6 +192,10 @@ export default {
       collapsed: false,
       pendingCollapsed: false,
       taskTimer: null,
+      lightRefreshTimer: null,
+      lightRefreshInFlight: false,
+      lightTaskRuntimeStatus: {},
+      activeBeaconLightTarget: null,
       flashRedDot: false,
       taskAreaCache: {},
       fullRouteActive: false
@@ -186,6 +205,11 @@ export default {
   computed: {
     navButtonText() {
       if (!this.currentTask) return this.$t('mobileNav.start');
+      if (this.isBeaconLightTask(this.currentTask)) {
+        return this.currentTask.status === '执行中'
+          ? this.$t('h5Location.lightContinueTask')
+          : this.$t('h5Location.lightStartTask');
+      }
       const target =
         this.taskStage === 'TO_END'
           ? this.$t('h5Location.end')
@@ -194,6 +218,18 @@ export default {
         ? this.$t('h5Location.navActionContinue')
         : this.$t('h5Location.navActionStart');
       return this.$t('h5Location.navButton', { action, target });
+    },
+    arrivedButtonText() {
+      return this.isBeaconLightTask(this.currentTask)
+        ? this.$t('h5Location.lightEndTask')
+        : this.$t('h5Location.arrived');
+    },
+    canShowTaskArea() {
+      return (
+        this.currentTask &&
+        !this.isBeaconLightTask(this.currentTask) &&
+        (this.currentTask.startAreaId || this.currentTask.endAreaId)
+      );
     }
   },
 
@@ -207,6 +243,7 @@ export default {
 
   beforeDestroy() {
     clearInterval(this.taskTimer);
+    this.clearBeaconLightTimer();
   },
 
   methods: {
@@ -224,9 +261,192 @@ export default {
       const map = {
         导航: this.$t('taskManage.type.nav'),
         取货: this.$t('taskManage.type.pickup'),
-        送货: this.$t('taskManage.type.delivery')
+        送货: this.$t('taskManage.type.delivery'),
+        点灯任务: this.$t('taskManage.type.light')
       };
       return map[type] || type;
+    },
+    normalizeMac(value) {
+      const mac = String(value || '')
+        .replace(/[^0-9a-f]/gi, '')
+        .toLowerCase();
+      return /^[0-9a-f]{12}$/.test(mac) ? mac : '';
+    },
+    getBeaconLightTarget(task) {
+      if (!task || !task.taskDesc) return null;
+
+      try {
+        const target = JSON.parse(task.taskDesc);
+        if (target && target.kind === BEACON_LIGHT_KIND) return target;
+      } catch (e) {
+        return null;
+      }
+
+      return null;
+    },
+    isBeaconLightTask(task) {
+      return task?.taskType === BEACON_LIGHT_TASK_TYPE || Boolean(this.getBeaconLightTarget(task));
+    },
+    applyLocalLightTaskStatus(task) {
+      if (!task || !this.isBeaconLightTask(task)) return task;
+
+      const runtimeStatus = this.lightTaskRuntimeStatus[task.id];
+      return runtimeStatus ? { ...task, status: runtimeStatus } : task;
+    },
+    markLocalLightTaskStatus(taskId, status) {
+      if (!taskId) return;
+      this.$set(this.lightTaskRuntimeStatus, taskId, status);
+    },
+    clearLocalLightTaskStatus(taskId) {
+      if (!taskId) return;
+      this.$delete(this.lightTaskRuntimeStatus, taskId);
+    },
+    displayTaskRemark(task) {
+      if (!task) return '-';
+      if (task.remark) return task.remark;
+      return this.getBeaconLightTarget(task) ? '-' : task.taskDesc || '-';
+    },
+    setActiveBeaconLightTarget(target) {
+      this.activeBeaconLightTarget = target ? { ...target } : null;
+    },
+    getCommandBeaconLightTarget(targetOverride) {
+      return (
+        targetOverride ||
+        this.getBeaconLightTarget(this.currentTask) ||
+        this.activeBeaconLightTarget
+      );
+    },
+    getDefaultCleBaseUrl() {
+      if (process.env.VUE_APP_CLE_BASE_URL) {
+        return process.env.VUE_APP_CLE_BASE_URL;
+      }
+
+      const host = window.location.hostname || 'localhost';
+      return `http://${host}:44444`;
+    },
+    normalizeCleBaseUrl(targetOverride) {
+      const target = this.getCommandBeaconLightTarget(targetOverride);
+      const stored = window.localStorage.getItem(CLE_BASE_URL_KEY);
+      return String(target?.cleBaseUrl || stored || this.getDefaultCleBaseUrl())
+        .replace(/^"|"$/g, '')
+        .trim()
+        .replace(/\/+$/, '');
+    },
+    buildBeaconLightValue() {
+      return [
+        LIGHT_COLOR_RED,
+        LIGHT_ON_SECONDS & 0xff,
+        (LIGHT_ON_SECONDS >> 8) & 0xff,
+        LIGHT_INTERVAL_UNITS,
+        LIGHT_DUTY,
+        LIGHT_MODE
+      ];
+    },
+    buildBeaconLightPayload(targetOverride) {
+      const target = this.getCommandBeaconLightTarget(targetOverride);
+      const mac = this.normalizeMac(target?.beaconMac);
+
+      if (!mac) {
+        throw new Error(this.$t('h5Location.lightNoDevice'));
+      }
+
+      return {
+        macs: [mac],
+        bufferSize: LIGHT_BUFFER_SIZE,
+        timeout: LIGHT_DELIVERY_TIMEOUT_SECONDS,
+        value: this.buildBeaconLightValue()
+      };
+    },
+    clearBeaconLightTimer() {
+      if (this.lightRefreshTimer) {
+        clearTimeout(this.lightRefreshTimer);
+        this.lightRefreshTimer = null;
+      }
+      this.lightRefreshInFlight = false;
+    },
+    async sendBeaconLightCommand(silent = false, targetOverride = null) {
+      const target = this.getCommandBeaconLightTarget(targetOverride);
+      const cleBaseUrl = this.normalizeCleBaseUrl(target);
+      if (!/^https?:\/\//.test(cleBaseUrl)) {
+        const error = new Error(this.$t('h5Location.lightCleUrlInvalid'));
+        if (!silent) this.$Message.error(error.message);
+        throw error;
+      }
+
+      const payload = this.buildBeaconLightPayload(target);
+      try {
+        await beaconLightTaskApi.beaconLightTaskSendMessage(cleBaseUrl, payload, LIGHT_HTTP_TIMEOUT_MS);
+      } catch (error) {
+        if (!silent) this.$Message.error(this.$t('h5Location.lightCommandFailed'));
+        throw error;
+      }
+    },
+    async runBeaconLightLoop(showError = false) {
+      const target = this.activeBeaconLightTarget;
+      if (!target || this.lightRefreshInFlight) return;
+
+      this.lightRefreshInFlight = true;
+      let sent = false;
+      try {
+        await this.sendBeaconLightCommand(!showError, target);
+        sent = true;
+      } catch (error) {
+        if (showError) throw error;
+      } finally {
+        this.lightRefreshInFlight = false;
+        if (this.activeBeaconLightTarget && (sent || !showError)) {
+          this.lightRefreshTimer = setTimeout(() => {
+            this.runBeaconLightLoop(false);
+          }, LIGHT_LOOP_DELAY_MS);
+        }
+      }
+    },
+    async startBeaconLightTask() {
+      const target = this.getCommandBeaconLightTarget();
+      this.setActiveBeaconLightTarget(target);
+      this.clearBeaconLightTimer();
+      await this.runBeaconLightLoop(true);
+      this.$Message.success(this.$t('h5Location.lightStarted'));
+    },
+    async stopBeaconLightTask(silent = false) {
+      this.activeBeaconLightTarget = null;
+      this.clearBeaconLightTimer();
+      if (!silent) {
+        this.$Message.success(this.$t('h5Location.lightStopped'));
+      }
+      return true;
+    },
+    isSilentTaskSuccess(response) {
+      return response?.data?.code === '0000';
+    },
+    async completeLightTaskOnServer(taskId) {
+      try {
+        const arrived = await taskApi.taskArrivedSilent({ taskId });
+        if (this.isSilentTaskSuccess(arrived)) return true;
+
+        await taskApi.taskStartSilent({ taskId }).catch(() => null);
+        const arrivedAfterStart = await taskApi.taskArrivedSilent({ taskId });
+        return this.isSilentTaskSuccess(arrivedAfterStart);
+      } catch (error) {
+        return false;
+      }
+    },
+    async ensureTaskMapLoaded(mapId) {
+      const rawMapId = String(mapId || '').trim();
+      if (!/^\d+$/.test(rawMapId)) return;
+
+      const targetMapId = Number(rawMapId);
+
+      const currentMapId = this.$refs.sll7?.mapId;
+      if (`${currentMapId}` === `${targetMapId}`) return;
+
+      try {
+        this.$refs.sideDrawer?.$refs?.mapCascader?.setValue(targetMapId);
+        await this.mapCascaderOnChange(targetMapId);
+      } catch (error) {
+        this.$Message.error(this.$t('mapNav.mapDataLoadFail'));
+        throw error;
+      }
     },
     drawerToggle() {
       this.$refs.sideDrawer.show();
@@ -292,7 +512,7 @@ export default {
     },
 
     async handleShowTaskArea() {
-      if (!this.currentTask) return;
+      if (!this.canShowTaskArea) return;
 
       const ids = [];
       if (this.currentTask.startAreaId) ids.push(this.currentTask.startAreaId);
@@ -306,7 +526,9 @@ export default {
 
     async fetchMyTask() {
       const res = await taskApi.taskMy();
-      const list = Array.isArray(res) ? res : [];
+      const list = (Array.isArray(res) ? res : []).map(task =>
+        this.applyLocalLightTaskStatus(task)
+      );
 
       this.pendingTaskList = list.filter(t => t.status === '已派发');
 
@@ -320,32 +542,78 @@ export default {
       const nextTask =
         runningTask || currentFromList || this.pendingTaskList[0] || null;
 
-      this.currentTask = nextTask
-        ? {
-            ...nextTask,
-            reachedStart: prevTaskId === nextTask.id ? prevReachedStart : false
-          }
-        : null;
+      if (nextTask) {
+        this.currentTask = this.applyLocalLightTaskStatus({
+          ...nextTask,
+          reachedStart: prevTaskId === nextTask.id ? prevReachedStart : false
+        });
+      } else {
+        this.currentTask = null;
+      }
 
       if (!this.currentTask) {
         this.nav.enabled = false;
         this.fullRouteActive = false;
+        this.clearBeaconLightTimer();
         this.calcTaskStage(null);
         return;
       }
 
-      if (prevTaskId !== this.currentTask.id) {
+      if (prevTaskId !== this.currentTask.id) {
         this.fullRouteActive = false;
         this.nav.enabled = this.currentTask.status === '执行中';
       } else if (this.currentTask.status !== '执行中') {
         this.nav.enabled = false;
         this.fullRouteActive = false;
+        if (this.isBeaconLightTask(this.currentTask)) {
+          this.clearBeaconLightTimer();
+        }
       }
 
       this.calcTaskStage(this.currentTask);
     },
     async handleStartNav() {
       if (!this.currentTask) return;
+
+      if (this.isBeaconLightTask(this.currentTask)) {
+        const wasRunning = this.currentTask.status === '执行中';
+        const target = this.getBeaconLightTarget(this.currentTask);
+        const targetPos = {
+          x: Number(target?.beaconX),
+          y: Number(target?.beaconY)
+        };
+
+        if (!Number.isFinite(targetPos.x) || !Number.isFinite(targetPos.y)) {
+          this.$Message.error(this.$t('h5Location.lightNoPosition'));
+          return;
+        }
+
+        await this.ensureTaskMapLoaded(target?.beaconMapId);
+        this.setActiveBeaconLightTarget(target);
+        this.taskStage = 'TO_END';
+        this.fullRouteActive = false;
+        this.currentTask = { ...this.currentTask, status: '执行中' };
+        this.markLocalLightTaskStatus(this.currentTask.id, '执行中');
+        this.nav.enabled = true;
+
+        await this.$refs.sll7?.navStartFixed({
+          areaName: this.currentTask.endAreaName || target?.objectName || '',
+          targetPos
+        });
+
+        try {
+          await this.startBeaconLightTask();
+        } catch (error) {
+          this.nav.enabled = true;
+        }
+
+        if (!wasRunning) {
+          taskApi.taskStartSilent({ taskId: this.currentTask.id }).catch(() => {});
+        }
+
+        this.nav.enabled = true;
+        return;
+      }
 
       if (this.currentTask.status !== '执行中') {
         await taskApi.taskStart({ taskId: this.currentTask.id });
@@ -404,6 +672,23 @@ export default {
       }
 
       if (this.taskStage === 'TO_END') {
+        if (this.isBeaconLightTask(this.currentTask)) {
+          const taskId = this.currentTask.id;
+          this.currentTask = { ...this.currentTask, status: '已完成' };
+          this.markLocalLightTaskStatus(taskId, '已完成');
+          this.taskStage = 'DONE';
+          this.nav.enabled = false;
+          this.fullRouteActive = false;
+          this.$refs.sll7?.navArrived();
+          this.completeLightTaskOnServer(taskId).then(success => {
+            if (success) {
+              this.clearLocalLightTaskStatus(taskId);
+            }
+            this.fetchMyTask();
+          });
+          this.stopBeaconLightTask(true).catch(() => {});
+          return;
+        }
         await taskApi.taskArrived({ taskId: this.currentTask.id });
         this.currentTask = { ...this.currentTask, status: '已完成' };
         this.taskStage = 'DONE';

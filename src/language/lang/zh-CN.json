@@ -141,6 +141,7 @@
     "device": "设备管理",
     "baseStation": "基站管理",
     "beaconManage": "信标管理",
+    "beaconLightTask": "找寻物品所在位置",
     "objectManage": "对象管理",
     "warning": "智能告警",
     "wariningInfo": "告警数据明细",
@@ -250,6 +251,16 @@
     "navActionStart": "开始",
     "navActionContinue": "继续",
     "navButton": "{action}导航（去{target}）",
+    "lightStartTask": "开始任务",
+    "lightContinueTask": "继续任务",
+    "lightEndTask": "结束任务",
+    "lightForceOff": "强制熄灯",
+    "lightStarted": "红灯循环已开始",
+    "lightStopped": "红灯已停止",
+    "lightNoDevice": "点灯设备无效",
+    "lightNoPosition": "点灯设备没有位置",
+    "lightCleUrlInvalid": "CLE 地址无效，请先在点灯系统里保存地址",
+    "lightCommandFailed": "点灯命令发送失败",
     "status": {
       "running": "执行中",
       "done": "已完成",
@@ -306,6 +317,119 @@
         "a": "对象名称排序",
         "b": "加入时间排序"
       }
+    }
+  },
+  "beaconLightTask": {
+    "cleBaseUrl": "CLE服务地址",
+    "connectTest": "连接测试",
+    "saveAddress": "保存地址",
+    "refreshBeacons": "刷新信标",
+    "defaultTaskName": "找寻物品所在位置",
+    "sections": {
+      "customTask": "找寻物品设置",
+      "preview": "任务预览",
+      "templates": "找寻模板",
+      "records": "找寻记录"
+    },
+    "fields": {
+      "taskName": "任务名称",
+      "beaconSelect": "选择定位对象",
+      "color": "亮灯颜色",
+      "singleOnTime": "单次点灯时间",
+      "taskDuration": "执行时长",
+      "executionMode": "执行方式",
+      "remark": "备注"
+    },
+    "placeholders": {
+      "taskName": "请输入任务名称",
+      "selectBeacon": "请选择已绑定定位对象的信标",
+      "remark": "请输入备注"
+    },
+    "colors": {
+      "red": "红色",
+      "yellow": "黄色",
+      "green": "绿色"
+    },
+    "units": {
+      "times": "次",
+      "seconds": "秒",
+      "minutes": "{count} 分钟"
+    },
+    "preview": {
+      "selectedCount": "{count} 个定位对象",
+      "totalDuration": "亮灯总时长",
+      "interval": "点灯间隔",
+      "singleOn": "单次点灯时间",
+      "executionMode": "执行方式",
+      "selectedTags": "已选定位对象"
+    },
+    "table": {
+      "taskName": "任务名称",
+      "color": "颜色",
+      "tags": "定位对象",
+      "singleOnTime": "单次点灯",
+      "taskDuration": "执行时长",
+      "executionMode": "执行方式",
+      "action": "操作",
+      "executedAt": "执行时间",
+      "status": "状态",
+      "cleBaseUrl": "CLE地址",
+      "result": "结果"
+    },
+    "actions": {
+      "reset": "清空",
+      "saveTemplate": "保存为模板",
+      "turnOff": "熄灭灯",
+      "execute": "执行任务",
+      "use": "使用",
+      "delete": "删除",
+      "clearRecords": "清空记录"
+    },
+    "status": {
+      "cleConnected": "CLE已连接",
+      "cleFailed": "CLE连接失败",
+      "executable": "可精确执行",
+      "adjustDuration": "需调整时长",
+      "success": "成功",
+      "failed": "失败",
+      "noRemark": "无备注",
+      "noObjectName": "未绑定对象",
+      "noBeaconSelected": "未选择定位对象"
+    },
+    "executionModes": {
+      "simultaneous": "同时亮",
+      "sequential": "顺序亮"
+    },
+    "validation": {
+      "taskNameRequired": "请输入任务名称",
+      "beaconRequired": "请选择至少一个信标",
+      "colorRequired": "请选择亮灯颜色",
+      "singleOnTimeRequired": "请输入单次点灯时间",
+      "singleOnTimeRange": "单次点灯时间需要是 1 到 60 的整数秒",
+      "taskDurationRequired": "请选择 1、2 或 3 分钟执行时长",
+      "executionModeRequired": "请选择执行方式",
+      "cleUrlRequired": "请输入 CLE 服务地址",
+      "cleUrlInvalid": "CLE 服务地址需要以 http:// 或 https:// 开头",
+      "durationInteger": "单次点灯时间需要是 1 到 60 的整数秒"
+    },
+    "messages": {
+      "saved": "保存成功",
+      "cleConnected": "CLE连接成功",
+      "taskSent": "亮灯任务已执行完成",
+      "turnOffSent": "熄灭指令已发送",
+      "templateSaved": "模板已保存",
+      "turnOffSuffix": "（熄灭）",
+      "httpSuccess": "HTTP成功",
+      "requestFailed": "请求失败",
+      "requestTimeout": "请求超时，请检查 CLE 服务或调大超时时间",
+      "partialFailed": "部分信标发送失败",
+      "simultaneousResult": "同时执行：成功 {success}/{total}",
+      "timedResult": "定时同时执行：成功 {success}/{total}",
+      "sequentialResult": "顺序执行：成功 {success}/{total}"
+    },
+    "confirm": {
+      "deleteTitle": "删除模板",
+      "deleteContent": "确定删除该任务模板吗？"
     }
   },
   "objectManage": {
@@ -456,12 +580,14 @@
       "endTime": "结束时间",
       "remark": "备注",
       "route": "路线",
-      "employee": "选择员工"
+      "employee": "选择员工",
+      "lightDevice": "点灯设备"
     },
     "type": {
       "nav": "导航",
       "pickup": "取货",
-      "delivery": "送货"
+      "delivery": "送货",
+      "light": "点灯任务"
     },
     "status": {
       "dispatched": "已派发",
@@ -606,7 +732,7 @@
       "stayHoldPeak": "滞留/放置峰值"
     },
     "panel": {
-      "distribution": "热点区域分布",
+      "distribution": "热点指标参数占比",
       "hotspotIdentify": "热点识别结果",
       "alarmRanking": "围栏告警频次排行",
       "routeFlow": "搬送路线排行",
@@ -626,7 +752,7 @@
       "holdMinutes": "放置时间(分)",
       "route": "搬送路径数",
       "score": "热点分",
-      "level": "等级"
+      "level": "热度等级"
     },
     "type": {
       "goods": "商品区域",
@@ -634,9 +760,9 @@
       "general": "综合区域"
     },
     "level": {
-      "high": "重点关注",
-      "medium": "持续观察",
-      "stable": "状态平稳"
+      "high": "热度高",
+      "medium": "热度中",
+      "stable": "热度低"
     },
     "export": {
       "fileName": "数据分析"

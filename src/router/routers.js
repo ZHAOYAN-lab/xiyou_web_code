@@ -117,6 +117,29 @@ export default [
   },
 
   /* ======================================
+   * 找寻物品所在位置
+   * ====================================== */
+  {
+    path: '/beacon-light-task',
+    name: '_beacon_light_task',
+    component: Layout,
+    meta: { hideInMenu: false, notCache: true },
+    children: [
+      {
+        path: 'index',
+        name: 'beacon_light_task',
+        meta: {
+          hideInMenu: false,
+          title: i18n.messages[i18n.locale].sideBarMenu.beaconLightTask,
+          notCache: true,
+          icon: 'ios-bulb-outline'
+        },
+        component: () => import('@/views/device-manage/beacon-light-task')
+      }
+    ]
+  },
+
+  /* ======================================
    * 预警管理
    * ====================================== */
   {

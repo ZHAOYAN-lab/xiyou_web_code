@@ -54,6 +54,37 @@
       </div>
     </div>
 
+    <Card class="surface-card chart-panel" :bordered="false" dis-hover>
+      <div slot="title" class="panel-head">
+        <div>
+          <p class="panel-title">{{ $t('billReport.panel.distribution') }}</p>
+          <p class="panel-tip">
+            {{
+              localizedText(
+                '按人员、物料、告警、滞留和路线展示占比，并显示实际数值。',
+                '人員、物料、アラーム、滞留、ルート別の比率と実数値を表示します。'
+              )
+            }}
+          </p>
+        </div>
+      </div>
+
+      <div v-if="metricPieData.length" class="pie-chart-layout">
+        <div ref="metricPieChart" class="pie-chart"></div>
+        <div class="pie-legend-list">
+          <div v-for="item in metricPieData" :key="item.key" class="pie-legend-item">
+            <span class="pie-dot" :style="{ background: item.color }"></span>
+            <span class="pie-legend-copy">
+              <span class="pie-legend-name">{{ item.name }}</span>
+              <span class="pie-legend-meta">{{ item.rawText }}</span>
+            </span>
+            <strong>{{ item.percentText }}</strong>
+          </div>
+        </div>
+      </div>
+      <sl-empty v-else />
+    </Card>
+
     <div class="content-grid">
       <Card class="surface-card" :bordered="false" dis-hover>
         <div slot="title" class="panel-head">
@@ -224,6 +255,23 @@
         </div>
       </div>
 
+      <div v-if="metricPieData.length" class="pdf-chart-block">
+        <p class="pdf-section-title">{{ $t('billReport.panel.distribution') }}</p>
+        <div class="pdf-chart-row">
+          <div ref="pdfMetricPieChart" class="pdf-pie-chart"></div>
+          <div class="pdf-pie-list">
+            <div v-for="item in metricPieData" :key="`pdf-pie-${item.key}`" class="pdf-pie-item">
+              <span class="pie-dot" :style="{ background: item.color }"></span>
+              <span class="pie-legend-copy">
+                <span class="pie-legend-name">{{ item.name }}</span>
+                <span class="pie-legend-meta">{{ item.rawText }}</span>
+              </span>
+              <strong>{{ item.percentText }}</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <table class="pdf-table">
         <thead>
           <tr>
@@ -263,6 +311,13 @@
 </template>
 
 <script>
+import * as echarts from 'echarts/core';
+import { PieChart } from 'echarts/charts';
+import { TooltipComponent } from 'echarts/components';
+import { CanvasRenderer } from 'echarts/renderers';
+
+echarts.use([PieChart, TooltipComponent, CanvasRenderer]);
+
 export default {
   name: 'DataAnalysisPage',
   data() {
@@ -283,8 +338,32 @@ export default {
         areas: [],
         routes: [],
         trends: []
-      }
+      },
+      metricPieChart: null,
+      pdfMetricPieChart: null
     };
+  },
+  mounted() {
+    window.addEventListener('resize', this.resizePieCharts);
+  },
+  beforeDestroy() {
+    window.removeEventListener('resize', this.resizePieCharts);
+    this.disposePieCharts();
+  },
+  watch: {
+    report: {
+      deep: true,
+      handler() {
+        this.$nextTick(() => {
+          this.renderPieCharts();
+        });
+      }
+    },
+    '$i18n.locale'() {
+      this.$nextTick(() => {
+        this.renderPieCharts();
+      });
+    }
   },
   computed: {
     isJapanese() {
@@ -349,6 +428,111 @@ export default {
       return [...this.report.routes]
         .sort((a, b) => Number(b.count || 0) - Number(a.count || 0))
         .slice(0, 6);
+    },
+    metricPieData() {
+      const areas = this.report.areas || [];
+      if (!areas.length) return [];
+
+      const peopleMax = this.maxMetric((item) => Number(item.peopleDensity || 0));
+      const materialMax = this.maxMetric((item) => Number(item.materialDensity || 0));
+      const alarmMax = this.maxMetric((item) => this.alarmCountValue(item));
+      const stayMax = this.maxMetric((item) => this.stayHoldTotal(item));
+      const routeMax = this.maxMetric((item) => Number(item.routeCount || 0));
+      const configs = [
+        {
+          key: 'people',
+          name: this.$t('billReport.analysis.people'),
+          color: '#2f65e9',
+          weight: 0.24,
+          max: peopleMax,
+          getter: (item) => Number(item.peopleDensity || 0),
+          rawText: (total, count) =>
+            this.localizedText(
+              `区域平均 ${this.formatNumber(total / count, 2)}`,
+              `エリア平均 ${this.formatNumber(total / count, 2)}`
+            )
+        },
+        {
+          key: 'material',
+          name: this.$t('billReport.analysis.material'),
+          color: '#28b897',
+          weight: 0.22,
+          max: materialMax,
+          getter: (item) => Number(item.materialDensity || 0),
+          rawText: (total, count) =>
+            this.localizedText(
+              `区域平均 ${this.formatNumber(total / count, 2)}`,
+              `エリア平均 ${this.formatNumber(total / count, 2)}`
+            )
+        },
+        {
+          key: 'alarm',
+          name: this.$t('billReport.analysis.alarm'),
+          color: '#f25f5c',
+          weight: 0.22,
+          max: alarmMax,
+          getter: (item) => this.alarmCountValue(item),
+          rawText: (total) =>
+            this.localizedText(
+              `总 ${this.formatNumber(total)} 次 / 日均 ${this.formatNumber(total / this.rangeDays, 2)} 次`,
+              `合計 ${this.formatNumber(total)} 件 / 日平均 ${this.formatNumber(total / this.rangeDays, 2)} 件`
+            )
+        },
+        {
+          key: 'stay',
+          name: this.$t('billReport.analysis.stay'),
+          color: '#f5b94b',
+          weight: 0.18,
+          max: stayMax,
+          getter: (item) => this.stayHoldTotal(item),
+          rawText: (total) =>
+            this.localizedText(
+              `总 ${this.formatNumber(total)} 分钟`,
+              `合計 ${this.formatNumber(total)} 分`
+            )
+        },
+        {
+          key: 'route',
+          name: this.$t('billReport.analysis.route'),
+          color: '#7c6ee6',
+          weight: 0.14,
+          max: routeMax,
+          getter: (item) => Number(item.routeCount || 0),
+          rawText: (total) =>
+            this.localizedText(
+              `总 ${this.formatNumber(total)} 条`,
+              `合計 ${this.formatNumber(total)} ルート`
+            )
+        }
+      ];
+      const values = configs
+        .map((config) => {
+          const rawTotal = areas.reduce((sum, item) => sum + Number(config.getter(item) || 0), 0);
+          const value = Number(
+            areas
+              .reduce((sum, item) => {
+                return (
+                  sum +
+                  this.normalizeMetricScore(config.getter(item), config.max) * config.weight
+                );
+              }, 0)
+              .toFixed(2)
+          );
+
+          return {
+            ...config,
+            rawTotal,
+            rawText: config.rawText(rawTotal, areas.length),
+            value
+          };
+        })
+        .filter((item) => item.value > 0);
+      const total = values.reduce((sum, item) => sum + item.value, 0);
+
+      return values.map((item) => ({
+        ...item,
+        percentText: `${this.formatNumber(total ? (item.value / total) * 100 : 0, 1)}%`
+      }));
     },
     summaryCards() {
       const hotspot = this.hotspotRanking[0] || null;
@@ -491,6 +675,101 @@ export default {
   methods: {
     localizedText(zhText, jaText) {
       return this.isJapanese ? jaText : zhText;
+    },
+    maxMetric(getter) {
+      return Math.max(...this.report.areas.map((item) => getter(item)), 0);
+    },
+    normalizeMetricScore(value, max) {
+      if (!Number.isFinite(max) || max <= 0) return 0;
+      const numeric = Number(value);
+      return Number.isFinite(numeric) ? Math.max((numeric / max) * 100, 0) : 0;
+    },
+    buildPieOption() {
+      return {
+        color: this.metricPieData.map((item) => item.color),
+        tooltip: {
+          trigger: 'item',
+          formatter: (params) => {
+            const data = params.data || {};
+            return `${params.name}: ${this.formatNumber(params.percent, 1)}%<br/>${data.rawText || ''}`;
+          }
+        },
+        series: [
+          {
+            name: this.$t('billReport.panel.distribution'),
+            type: 'pie',
+            radius: ['42%', '70%'],
+            center: ['50%', '50%'],
+            avoidLabelOverlap: true,
+            label: {
+              formatter: '{b}\n{d}%'
+            },
+            labelLine: {
+              length: 12,
+              length2: 8
+            },
+            data: this.metricPieData.map((item) => ({
+              name: item.name,
+              value: item.value,
+              rawText: item.rawText
+            }))
+          }
+        ]
+      };
+    },
+    renderPieChart(refName, chartName) {
+      const element = this.$refs[refName];
+      if (!element) return;
+
+      if (!this.metricPieData.length) {
+        if (this[chartName]) {
+          this[chartName].dispose();
+          this[chartName] = null;
+        }
+        return;
+      }
+
+      if (!this[chartName]) {
+        this[chartName] = echarts.init(element);
+      }
+      this[chartName].setOption(this.buildPieOption(), true);
+      this[chartName].resize();
+    },
+    renderPieCharts() {
+      this.renderPieChart('metricPieChart', 'metricPieChart');
+      this.renderPieChart('pdfMetricPieChart', 'pdfMetricPieChart');
+    },
+    resizePieCharts() {
+      if (this.metricPieChart) this.metricPieChart.resize();
+      if (this.pdfMetricPieChart) this.pdfMetricPieChart.resize();
+    },
+    disposePieCharts() {
+      if (this.metricPieChart) {
+        this.metricPieChart.dispose();
+        this.metricPieChart = null;
+      }
+      if (this.pdfMetricPieChart) {
+        this.pdfMetricPieChart.dispose();
+        this.pdfMetricPieChart = null;
+      }
+    },
+    waitForPaint() {
+      return new Promise((resolve) => {
+        window.setTimeout(resolve, 120);
+      });
+    },
+    async ensureExportChartsReady() {
+      await this.$nextTick();
+      this.renderPieCharts();
+      await this.waitForPaint();
+    },
+    getPieChartDataUrl() {
+      if (!this.metricPieChart || !this.metricPieData.length) return '';
+      return this.metricPieChart.getDataURL({
+        type: 'png',
+        pixelRatio: 2,
+        backgroundColor: '#ffffff'
+      });
     },
     handleMapReady() {
       if (this.initialized) return;
@@ -669,6 +948,7 @@ export default {
         return;
       }
 
+      await this.ensureExportChartsReady();
       const [{ default: html2canvas }, pdfModule] = await Promise.all([import('html2canvas'), import('jspdf')]);
       const PdfConstructor = pdfModule.jsPDF || (pdfModule.default && pdfModule.default.jsPDF) || pdfModule.default;
       const element = this.$refs.pdfSheet;
@@ -706,27 +986,201 @@ export default {
         return;
       }
 
-      const XLSX = await import('xlsx');
-      const rows = this.report.areas.map((item) => ({
-        [this.$t('billReport.table.area')]: item.displayName || item.objectName,
-        [this.$t('billReport.table.type')]: this.areaTypeLabel(item.areaType),
-        [this.$t('billReport.table.map')]: item.mapNames || this.$t('base.noData'),
-        [this.$t('billReport.table.peopleDensity')]: this.formatNumber(item.peopleDensity, 2),
-        [this.$t('billReport.table.materialDensity')]: this.formatNumber(item.materialDensity, 2),
-        [this.$t('billReport.table.alarmCount')]: this.alarmCountText(item),
-        [this.$t('billReport.table.alarmFrequency')]: this.alarmAverageText(item),
-        [this.$t('billReport.table.stayMinutes')]: item.stayMinutes,
-        [this.$t('billReport.table.holdMinutes')]: item.holdMinutes,
-        [this.$t('billReport.table.route')]: item.routeCount,
-        [this.$t('billReport.table.score')]: item.hotspotScore,
-        [this.$t('billReport.table.level')]: this.$t(`billReport.level.${item.levelKey}`)
-      }));
-      const workbook = XLSX.utils.book_new();
-      const worksheet = XLSX.utils.json_to_sheet(rows);
+      await this.ensureExportChartsReady();
+      const ExcelModule = await import('exceljs/dist/exceljs.min.js');
+      const ExcelJS = ExcelModule.default || ExcelModule;
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet(this.$t('sideBarMenu.billReport'));
 
-      XLSX.utils.book_append_sheet(workbook, worksheet, this.$t('sideBarMenu.billReport'));
-      XLSX.writeFile(workbook, `${this.exportBaseName()}.xlsx`);
+      workbook.creator = 'xiyou';
+      workbook.created = new Date();
+      this.buildExcelWorksheet(workbook, worksheet, this.getPieChartDataUrl());
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      this.downloadBlob(
+        buffer,
+        `${this.exportBaseName()}.xlsx`,
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      );
       this.$Message.success(this.$t('base.optionSuccess'));
+    },
+    buildExcelWorksheet(workbook, worksheet, chartImage) {
+      const detailHeaders = [
+        this.$t('billReport.table.area'),
+        this.$t('billReport.table.type'),
+        this.$t('billReport.table.map'),
+        this.$t('billReport.table.peopleDensity'),
+        this.$t('billReport.table.materialDensity'),
+        this.$t('billReport.table.alarmCount'),
+        this.$t('billReport.table.alarmFrequency'),
+        this.$t('billReport.table.stayMinutes'),
+        this.$t('billReport.table.holdMinutes'),
+        this.$t('billReport.table.route'),
+        this.$t('billReport.table.score'),
+        this.$t('billReport.table.level')
+      ];
+      const detailRows = this.report.areas.map((item) => [
+        item.displayName || item.objectName,
+        this.areaTypeLabel(item.areaType),
+        item.mapNames || this.$t('base.noData'),
+        this.formatNumber(item.peopleDensity, 2),
+        this.formatNumber(item.materialDensity, 2),
+        this.alarmCountText(item),
+        this.alarmAverageText(item),
+        item.stayMinutes,
+        item.holdMinutes,
+        item.routeCount,
+        item.hotspotScore,
+        this.$t(`billReport.level.${item.levelKey}`)
+      ]);
+
+      const summaryRows = this.summaryCards.map((card) => [card.label, card.value, card.desc]);
+      const pieRows = this.metricPieData.map((item) => [item.name, item.rawText, item.percentText]);
+
+      worksheet.columns = [
+        { width: 22 },
+        { width: 16 },
+        { width: 22 },
+        { width: 16 },
+        { width: 16 },
+        { width: 16 },
+        { width: 20 },
+        { width: 15 },
+        { width: 15 },
+        { width: 15 },
+        { width: 12 },
+        { width: 12 }
+      ];
+
+      this.mergeExcelRow(worksheet, 1, 1, 12);
+      worksheet.getCell('A1').value = this.$t('billReport.title');
+      worksheet.getCell('A1').font = { bold: true, size: 18, color: { argb: 'FF1F3450' } };
+      worksheet.getCell('A1').alignment = { vertical: 'middle' };
+      worksheet.getRow(1).height = 28;
+
+      this.mergeExcelRow(worksheet, 2, 1, 12);
+      worksheet.getCell('A2').value = this.pageSubtitle;
+      worksheet.getCell('A2').font = { color: { argb: 'FF60758F' } };
+      worksheet.getCell('A2').alignment = { wrapText: true, vertical: 'middle' };
+      worksheet.getRow(2).height = 34;
+
+      worksheet.addRow([]);
+      [
+        [this.$t('billReport.text.mapLabel'), this.currentMapLabel],
+        [this.$t('billReport.filter.range'), this.selectedRangeText],
+        [this.$t('billReport.text.generatedAt'), this.generatedLabel]
+      ].forEach((row) => {
+        const current = worksheet.addRow(row);
+        this.styleExcelMetaRow(current);
+      });
+
+      worksheet.addRow([]);
+      this.addExcelSectionTitle(worksheet, this.localizedText('概览', '概要'));
+      const summaryHeader = worksheet.addRow([
+        this.localizedText('指标', '指標'),
+        this.localizedText('数值', '値'),
+        this.localizedText('说明', '説明')
+      ]);
+      this.styleExcelHeaderRow(summaryHeader);
+      summaryRows.forEach((row) => worksheet.addRow(row));
+
+      worksheet.addRow([]);
+      this.addExcelSectionTitle(worksheet, this.$t('billReport.panel.distribution'));
+      const chartTopRow = worksheet.rowCount + 1;
+      if (chartImage) {
+        const imageId = workbook.addImage({
+          base64: chartImage,
+          extension: 'png'
+        });
+        worksheet.addImage(imageId, {
+          tl: { col: 0, row: chartTopRow - 1 },
+          ext: { width: 460, height: 260 }
+        });
+      }
+      const pieHeaderRow = worksheet.getRow(chartTopRow);
+      pieHeaderRow.getCell(8).value = this.localizedText('参数', 'パラメータ');
+      pieHeaderRow.getCell(9).value = this.localizedText('实际数值', '実数値');
+      pieHeaderRow.getCell(10).value = this.localizedText('占比', '比率');
+      this.styleExcelHeaderCells([
+        pieHeaderRow.getCell(8),
+        pieHeaderRow.getCell(9),
+        pieHeaderRow.getCell(10)
+      ]);
+      pieRows.forEach((row, index) => {
+        const current = worksheet.getRow(chartTopRow + index + 1);
+        current.getCell(8).value = row[0];
+        current.getCell(9).value = row[1];
+        current.getCell(10).value = row[2];
+      });
+      for (let index = 0; index < 14; index += 1) {
+        worksheet.getRow(chartTopRow + index).height = 18;
+      }
+
+      worksheet.addRow([]);
+      worksheet.addRow([]);
+      this.addExcelSectionTitle(worksheet, this.$t('billReport.panel.detail'));
+      const detailHeaderRow = worksheet.addRow(detailHeaders);
+      this.styleExcelHeaderRow(detailHeaderRow);
+      detailRows.forEach((row) => worksheet.addRow(row));
+
+      worksheet.eachRow((row) => {
+        row.eachCell((cell) => {
+          cell.alignment = { ...(cell.alignment || {}), vertical: 'middle', wrapText: true };
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFDCE5F1' } },
+            left: { style: 'thin', color: { argb: 'FFDCE5F1' } },
+            bottom: { style: 'thin', color: { argb: 'FFDCE5F1' } },
+            right: { style: 'thin', color: { argb: 'FFDCE5F1' } }
+          };
+        });
+      });
+    },
+    mergeExcelRow(worksheet, row, startCol, endCol) {
+      worksheet.mergeCells(row, startCol, row, endCol);
+    },
+    addExcelSectionTitle(worksheet, title) {
+      const row = worksheet.addRow([title]);
+      this.mergeExcelRow(worksheet, row.number, 1, 12);
+      row.getCell(1).font = { bold: true, size: 14, color: { argb: 'FF1F3450' } };
+      row.getCell(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFF8FBFF' }
+      };
+      row.height = 24;
+      return row;
+    },
+    styleExcelMetaRow(row) {
+      row.getCell(1).font = { bold: true };
+      row.getCell(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFEFF4FB' }
+      };
+    },
+    styleExcelHeaderRow(row) {
+      this.styleExcelHeaderCells(row.values.slice(1).map((value, index) => row.getCell(index + 1)));
+    },
+    styleExcelHeaderCells(cells) {
+      cells.forEach((cell) => {
+        cell.font = { bold: true, color: { argb: 'FF1F3450' } };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFEFF4FB' }
+        };
+      });
+    },
+    downloadBlob(content, filename, type) {
+      const blob = new Blob([content], { type });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
     },
     exportBaseName() {
       const stamp = this.$pub.slTimeFormat(Date.now(), { format: 'YYYYMMDD_HHmmss' });
@@ -889,6 +1343,67 @@ export default {
   color: #60758f;
   line-height: 1.6;
   word-break: break-word;
+}
+
+.chart-panel {
+  margin-bottom: 14px;
+}
+
+.pie-chart-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(220px, 0.42fr);
+  gap: 18px;
+  align-items: center;
+}
+
+.pie-chart {
+  width: 100%;
+  height: 280px;
+}
+
+.pie-legend-list {
+  display: grid;
+  gap: 10px;
+}
+
+.pie-legend-item,
+.pdf-pie-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  align-items: center;
+  color: #60758f;
+  line-height: 1.5;
+}
+
+.pie-legend-item strong,
+.pdf-pie-item strong {
+  color: #1f3450;
+}
+
+.pie-legend-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.pie-legend-name {
+  color: #1f3450;
+  font-weight: 600;
+}
+
+.pie-legend-meta {
+  color: #60758f;
+  font-size: 12px;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.pie-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
 }
 
 .content-grid {
@@ -1157,6 +1672,37 @@ export default {
   line-height: 1.6;
 }
 
+.pdf-chart-block {
+  margin-bottom: 20px;
+  padding: 14px;
+  border: 1px solid #e4edf7;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.pdf-section-title {
+  color: #1f3450;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.pdf-chart-row {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 16px;
+  align-items: center;
+}
+
+.pdf-pie-chart {
+  width: 760px;
+  height: 260px;
+}
+
+.pdf-pie-list {
+  display: grid;
+  gap: 10px;
+}
+
 .pdf-table {
   width: 100%;
   border-collapse: collapse;
@@ -1196,6 +1742,7 @@ export default {
 
 @media (max-width: 1080px) {
   .toolbar-controls,
+  .pie-chart-layout,
   .summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1207,6 +1754,7 @@ export default {
 
 @media (max-width: 760px) {
   .toolbar-controls,
+  .pie-chart-layout,
   .summary-grid {
     grid-template-columns: 1fr;
   }

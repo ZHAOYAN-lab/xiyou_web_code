@@ -177,6 +177,119 @@
       "typeNotEmpat": "タグタイプは必須入力項目です"
     }
   },
+  "beaconLightTask": {
+    "cleBaseUrl": "CLEサービスURL",
+    "connectTest": "接続テスト",
+    "saveAddress": "URL保存",
+    "refreshBeacons": "タグ再読込",
+    "defaultTaskName": "物品位置を探す",
+    "sections": {
+      "customTask": "物品検索設定",
+      "preview": "タスクプレビュー",
+      "templates": "検索テンプレート",
+      "records": "検索履歴"
+    },
+    "fields": {
+      "taskName": "タスク名",
+      "beaconSelect": "測位対象選択",
+      "color": "点灯色",
+      "singleOnTime": "1回あたり点灯時間",
+      "taskDuration": "実行時間",
+      "executionMode": "実行方式",
+      "remark": "備考"
+    },
+    "placeholders": {
+      "taskName": "タスク名を入力してください",
+      "selectBeacon": "測位対象に紐づいたタグを選択してください",
+      "remark": "備考を入力してください"
+    },
+    "colors": {
+      "red": "赤",
+      "yellow": "黄",
+      "green": "緑"
+    },
+    "units": {
+      "times": "回",
+      "seconds": "秒",
+      "minutes": "{count}分"
+    },
+    "preview": {
+      "selectedCount": "{count}件の測位対象",
+      "totalDuration": "点灯総時間",
+      "interval": "点灯間隔",
+      "singleOn": "1回あたり点灯時間",
+      "executionMode": "実行方式",
+      "selectedTags": "選択済み測位対象"
+    },
+    "table": {
+      "taskName": "タスク名",
+      "color": "色",
+      "tags": "測位対象",
+      "singleOnTime": "点灯時間",
+      "taskDuration": "実行時間",
+      "executionMode": "実行方式",
+      "action": "操作",
+      "executedAt": "実行日時",
+      "status": "ステータス",
+      "cleBaseUrl": "CLEサービスURL",
+      "result": "結果"
+    },
+    "actions": {
+      "reset": "クリア",
+      "saveTemplate": "テンプレート保存",
+      "turnOff": "消灯",
+      "execute": "実行",
+      "use": "使用",
+      "delete": "削除",
+      "clearRecords": "履歴クリア"
+    },
+    "status": {
+      "cleConnected": "CLE接続済み",
+      "cleFailed": "CLE接続失敗",
+      "executable": "実行可能",
+      "adjustDuration": "時間を調整してください",
+      "success": "成功",
+      "failed": "失敗",
+      "noRemark": "備考なし",
+      "noObjectName": "対象未設定",
+      "noBeaconSelected": "測位対象が選択されていません"
+    },
+    "executionModes": {
+      "simultaneous": "同時点灯",
+      "sequential": "順次点灯"
+    },
+    "validation": {
+      "taskNameRequired": "タスク名を入力してください",
+      "beaconRequired": "タグを1つ以上選択してください",
+      "colorRequired": "点灯色を選択してください",
+      "singleOnTimeRequired": "1回あたり点灯時間を入力してください",
+      "singleOnTimeRange": "1回あたり点灯時間は1秒から60秒の整数で指定してください",
+      "taskDurationRequired": "1分、2分、3分のいずれかを選択してください",
+      "executionModeRequired": "実行方式を選択してください",
+      "cleUrlRequired": "CLEサービスURLを入力してください",
+      "cleUrlInvalid": "CLEサービスURLは http:// または https:// で始まる必要があります",
+      "durationInteger": "1回あたり点灯時間は1秒から60秒の整数で指定してください"
+    },
+    "messages": {
+      "saved": "保存しました",
+      "cleConnected": "CLEに接続しました",
+      "taskSent": "点灯タスクが完了しました",
+      "turnOffSent": "消灯コマンドを送信しました",
+      "templateSaved": "テンプレートを保存しました",
+      "turnOffSuffix": "（消灯）",
+      "httpSuccess": "HTTP成功",
+      "requestFailed": "リクエストに失敗しました",
+      "requestTimeout": "リクエストがタイムアウトしました。CLEサービスまたはタイムアウト設定を確認してください",
+      "partialFailed": "一部のタグ送信に失敗しました",
+      "simultaneousResult": "同時実行：成功 {success}/{total}",
+      "timedResult": "時間指定の同時実行：成功 {success}/{total}",
+      "sequentialResult": "順次実行：成功 {success}/{total}"
+    },
+    "confirm": {
+      "deleteTitle": "テンプレート削除",
+      "deleteContent": "このタスクテンプレートを削除しますか？"
+    }
+  },
   "buildingSet": {
     "deleteBuildMsg": "確かに削除しますか？</br>当該建物を削除すると、建物内の関連情報が全部削除されます。",
     "image": "見取図",
@@ -352,6 +465,7 @@
   "sideBarMenu": {
     "baseStation": "ロケーター管理",
     "beaconManage": "タグ管理",
+    "beaconLightTask": "物品位置を探す",
     "buildingSet": "地図管理",
     "device": "設備管理",
     "fenceManage": "アラートゾーン管理",
@@ -400,6 +514,16 @@
     "navActionStart": "開始",
     "navActionContinue": "続行",
     "navButton": "{action}ナビ（{target}へ）",
+    "lightStartTask": "タスク開始",
+    "lightContinueTask": "タスク続行",
+    "lightEndTask": "タスク終了",
+    "lightForceOff": "強制消灯",
+    "lightStarted": "赤色点灯ループを開始しました",
+    "lightStopped": "赤色点滅を停止しました",
+    "lightNoDevice": "点灯デバイスが無効です",
+    "lightNoPosition": "点灯デバイスに位置情報がありません",
+    "lightCleUrlInvalid": "CLE アドレスが無効です。先に点灯システムで保存してください",
+    "lightCommandFailed": "点灯コマンドの送信に失敗しました",
     "status": {
       "running": "実行中",
       "done": "完了",
@@ -449,12 +573,14 @@
       "endTime": "終了時間",
       "remark": "備考",
       "route": "ルート",
-      "employee": "従業員を選択"
+      "employee": "従業員を選択",
+      "lightDevice": "点灯デバイス"
     },
     "type": {
       "nav": "ナビ",
       "pickup": "集荷",
-      "delivery": "配送"
+      "delivery": "配送",
+      "light": "点灯タスク"
     },
     "status": {
       "dispatched": "割り当て済み",
@@ -599,7 +725,7 @@
       "stayHoldPeak": "滞留/放置ピーク"
     },
     "panel": {
-      "distribution": "ホットスポット分布",
+      "distribution": "ホットスポット指標比率",
       "hotspotIdentify": "ホットスポット識別結果",
       "alarmRanking": "フェンスアラーム頻度ランキング",
       "routeFlow": "搬送ルートランキング",
@@ -619,7 +745,7 @@
       "holdMinutes": "放置時間(分)",
       "route": "搬送ルート数",
       "score": "ホットスコア",
-      "level": "レベル"
+      "level": "注目度レベル"
     },
     "type": {
       "goods": "商品エリア",
@@ -627,9 +753,9 @@
       "general": "総合エリア"
     },
     "level": {
-      "high": "重点監視",
-      "medium": "継続観察",
-      "stable": "安定"
+      "high": "注目度 高",
+      "medium": "注目度 中",
+      "stable": "注目度 低"
     },
     "export": {
       "fileName": "データ分析"

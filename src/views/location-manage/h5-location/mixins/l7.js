@@ -41,41 +41,44 @@ export default {
 
     // 切换地图
     mapCascaderOnChange(value) {
-      this.$api
+      return this.$api
         .pubGetMapDetailByMapId({
           data: {
             mapId: value
           }
         })
         .then((res) => {
-          this.sll7Init(res);
+          return this.sll7Init(res);
         });
     },
     sll7Init(data) {
-      let l7 = this.l7;
-      l7.show = false;
-      this.$nextTick(() => {
-        l7.show = true;
+      return new Promise((resolve, reject) => {
+        let l7 = this.l7;
+        l7.show = false;
         this.$nextTick(() => {
-          let sll7 = this.$refs.sll7;
-          sll7.mapInit().then(() => {
-            console.log('获取数据后渲染');
+          l7.show = true;
+          this.$nextTick(() => {
+            let sll7 = this.$refs.sll7;
+            sll7.mapInit().then(() => {
+              console.log('获取数据后渲染');
 
-            // 底图
-            sll7.mapSetBackgroundImage(data);
-            // 基站（H5 默认不显示）
-            if (this.l7.switch.jz) {
-              sll7.jizhanSetData(data);
-            }
-            //围栏(不可编辑)
-            this.fenceManageGetDataByMapId();
+              // 底图
+              sll7.mapSetBackgroundImage(data);
+              // 基站（H5 默认不显示）
+              if (this.l7.switch.jz) {
+                sll7.jizhanSetData(data);
+              }
+              //围栏(不可编辑)
+              this.fenceManageGetDataByMapId();
 
-            this.bindSelfMqttHandler(sll7);
-            sll7.createConnection();
-            setTimeout(() => {
-              // mqtt
-              sll7.handleSubscribe(data.mapId);
-            }, 1000);
+              this.bindSelfMqttHandler(sll7);
+              sll7.createConnection();
+              setTimeout(() => {
+                // mqtt
+                sll7.handleSubscribe(data.mapId);
+              }, 1000);
+              resolve();
+            }).catch(reject);
           });
         });
       });
@@ -122,8 +125,8 @@ export default {
       const list = Array.isArray(payload?.data)
         ? payload.data
         : Array.isArray(payload)
-        ? payload
-        : [];
+          ? payload
+          : [];
       const mac = this.getSelfBeaconMac();
 
       if (!mac) {
